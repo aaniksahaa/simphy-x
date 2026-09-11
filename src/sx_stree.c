@@ -22,7 +22,7 @@ long sx_new_bds_tree(sx_stree **out_tree, int leaves, double time, double b_rate
 
     if (leaves > 0) {
         /* ---- BDSA ---- */
-        if (verbosity > 3) printf("\n\tUsing BDSA algorithm (fixed number of leaves) to simulate the trees...");
+        if (verbosity > 3) sx_out("\n\tUsing BDSA algorithm (fixed number of leaves) to simulate the trees...");
         if (outgroup > 0) t = sx_stree_new(((leaves + 1) * 2) - 1, leaves + 1, leaves + 1, 2, gen_time, Ne, mu);
         else t = sx_stree_new((leaves * 2) - 1, leaves, leaves, 2, gen_time, Ne, mu);
         *out_tree = t;
@@ -160,10 +160,10 @@ long sx_new_bds_tree(sx_stree **out_tree, int leaves, double time, double b_rate
         }
         t->locus_tree = NULL;
         free(i_nodes); free(node_ptrs);
-        if (verbosity > 4) printf("\n\t\t\tDone");
+        if (verbosity > 4) sx_out("\n\t\t\tDone");
     } else {
         /* ---- SSA ---- */
-        if (verbosity > 3) printf("\n\tUsing SSA algorithm (fixed generations) to simulate the species tree...");
+        if (verbosity > 3) sx_out("\n\tUsing SSA algorithm (fixed generations) to simulate the species tree...");
         while (iter <= MAX_IT) {
             ++iter;
             node_ptrs = sx_calloc((size_t)MAX_LEAVES, sizeof(int));
@@ -240,7 +240,7 @@ long sx_new_bds_tree(sx_stree **out_tree, int leaves, double time, double b_rate
             }
             if (avail_leaves < 2) {
                 sx_stree_free(t); t = NULL; *out_tree = NULL; free(node_ptrs); node_ptrs = NULL;
-                if (verbosity > 2) printf("\n\t\t\tSpecies tree with less than 2 leaves or mrca smaller than expected, restart of the simulation of this tree. Try %d of %d", iter, MAX_IT);
+                if (verbosity > 2) sx_out("\n\t\t\tSpecies tree with less than 2 leaves or mrca smaller than expected, restart of the simulation of this tree. Try %d of %d", iter, MAX_IT);
                 continue;
             } else { iter = 0; break; }
         }
@@ -279,6 +279,16 @@ long sx_new_bds_tree(sx_stree **out_tree, int leaves, double time, double b_rate
         if (iter > MAX_IT) return SX_LOOP_ERROR;
     }
     /* n_nodes is finalised by the collapse (unreachable arena nodes dropped). */
+    {
+        int *order = sx_malloc(sizeof(int) * (size_t)t->n_nodes);
+        int nreach = sx_order_traversal(t->n_child, t->child, t->max_children, t->root, 1, order, t->n_nodes);
+        free(order);
+        switch (verbosity) {
+        case 0: case 1: case 2: break;
+        case 3: sx_out("\n\t%d-node species tree correctly simulated\n", nreach); break;
+        default: sx_out("\n\t\t%d-node species tree correctly simulated: ", nreach); (*out_tree)->n_nodes_hint = nreach; break;
+        }
+    }
     return SX_NO_ERROR;
 }
 

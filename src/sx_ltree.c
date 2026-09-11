@@ -264,13 +264,13 @@ long sx_sim_bdlh_tree(sx_stree *st, sx_ltree **wlt, int *node_ptrs, double b_rat
         if (lt_true_leaves < min_lleaves || maxnleaves_reached == 1 || lt_diffs_true_leaves < min_lsleaves || S->gleaves <= 1) {
             if (verbosity > 2) {
                 if (maxnleaves_reached == 1)
-                    printf("\n\t\tThe locus tree simulation reached the maximum number of locus tree lineages (%d) inside a species tree branch. After checking your simulation parameters carefully (mainly the duplication rate) you can sort this problem out setting the environmental variable SIMPHY_MAXLEAVES with a value higher than %d. Try %d of %d", MAX_LEAVES, MAX_LEAVES, l_tree_retries, MAX_IT);
+                    sx_out("\n\t\tThe locus tree simulation reached the maximum number of locus tree lineages (%d) inside a species tree branch. After checking your simulation parameters carefully (mainly the duplication rate) you can sort this problem out setting the environmental variable SIMPHY_MAXLEAVES with a value higher than %d. Try %d of %d", MAX_LEAVES, MAX_LEAVES, l_tree_retries, MAX_IT);
                 else if (lt_true_leaves < min_lleaves)
-                    printf("\n\t\tLocus tree with %u leaves, less than the minimum %u , restart of the simulation of this tree. Try %d of %d", lt_true_leaves, min_lleaves, l_tree_retries, MAX_IT);
+                    sx_out("\n\t\tLocus tree with %u leaves, less than the minimum %u , restart of the simulation of this tree. Try %d of %d", lt_true_leaves, min_lleaves, l_tree_retries, MAX_IT);
                 else if (lt_diffs_true_leaves < min_lsleaves)
-                    printf("\n\t\tLocus tree with %u leaves from different species, less than the minimum %u , restart of the simulation of this tree. Try %d of %d", lt_diffs_true_leaves, min_lsleaves, l_tree_retries, MAX_IT);
+                    sx_out("\n\t\tLocus tree with %u leaves from different species, less than the minimum %u , restart of the simulation of this tree. Try %d of %d", lt_diffs_true_leaves, min_lsleaves, l_tree_retries, MAX_IT);
                 else
-                    printf("\n\t\tLocus tree with %u associated gene tree leaves, less than 2, restart of the simulation of this tree. Try %d of %d", S->gleaves, l_tree_retries, MAX_IT);
+                    sx_out("\n\t\tLocus tree with %u associated gene tree leaves, less than 2, restart of the simulation of this tree. Try %d of %d", S->gleaves, l_tree_retries, MAX_IT);
             }
             ++l_tree_retries;
         } else done = 1;

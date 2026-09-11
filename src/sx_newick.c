@@ -201,6 +201,10 @@ sx_stree *sx_parse_newick_stree(const char *newick, sx_names **names_ptr, int ve
     if (t->n_nodes != n_leaves + n_inodes) sx_fatal("Newick parser: node count mismatch (%d vs %d)", t->n_nodes, n_leaves + n_inodes);
     sx_stree_reindex(t, 1);
     if (check_ultrametricity(t, root) == -1) sx_check(SX_UNEXPECTED_VALUE, "The species tree is not ultrametric in time units. This doesn't allow to use the full model (transfers)\n");
-    if (verbosity > 2) printf("\n\t%d-node species tree correctly built\n", (n_leaves * 2) - 1);
+    if (verbosity > 2) {
+        sx_out("\n\t%d-node species tree correctly built", (n_leaves * 2) - 1);
+        if (verbosity > 3) { sx_buf tb; sx_buf_init(&tb); sx_buf_puts(&tb, ": "); sx_write_stree(&tb, t, names, 0, 0); while (tb.len > 0 && tb.data[tb.len - 1] == '\n') --tb.len; tb.data[tb.len] = 0; sx_out("%s", tb.data); sx_buf_free(&tb); }
+        sx_out("\n");
+    }
     return t;
 }

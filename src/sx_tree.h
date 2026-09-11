@@ -16,6 +16,7 @@ typedef struct sx_stree {
     double *n_gen, *time, *gen_length, *mu_mult, *gtime_mult;
     int *l_head, *n_lnodes;          /* locus-tree simulation linkage */
     struct sx_ltree *locus_tree;
+    int n_nodes_hint;                /* verbosity>3: tree is printed by the caller after collapse */
 } sx_stree;
 
 typedef struct sx_ltree {

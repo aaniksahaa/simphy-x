@@ -35,6 +35,7 @@ typedef struct fast_rep {
     int nl_trees, n_ldigits, n_gdigits;
     char dir[32];
     FILE *l_outfile, *d_outfile, *stat_outfile;   /* owned by the committer */
+    sx_buf log; int log_flushed;                  /* species-level stdout text, printed before the first locus commit */
     int committed;              /* loci committed so far */
     int refs;
 } fast_rep;
@@ -51,6 +52,7 @@ typedef struct fast_job {
     long double *height_cu, *length_bl, *height_bl;
     sx_ltree_stats st;
     double gamma_l;
+    sx_buf log;                 /* SimPhy's stdout text for this locus */
     int done;
 } fast_job;
 
@@ -114,11 +116,15 @@ static void fast_worker(void *vp)
 
     sx_sunit *lloop[5] = { &s->lb_rate, &s->ld_rate, &s->lt_rate, &s->lgc_rate, &s->lalpha_g };
     sx_sunit *gloop[1] = { &s->alpha_g };
+    verbosity = s->verbosity;
+    sx_buf_init(&j->log);
+    sx_out_capture(&j->log);
     sx_check(sx_sample_distr(r, 5, lloop), ": sampling distributions");
     sx_check(sx_check_sampled_lloop(s), ": improper sampled values");
     sx_ltree_stats st; memset(&st, 0, sizeof st);
     double gamma_l = 0;
     if (sx_get(s->alpha_l) != 0) gamma_l = gsl_ran_gamma(r, sx_get(s->alpha_l), 1 / (sx_get(s->alpha_l)));
+    if (verbosity > 2) sx_print_settings_lloop(s, j->locus, gamma_l);
     int simulated_locus = (sx_get(s->lb_rate) != 0 || sx_get(s->ld_rate) != 0 || sx_get(s->lt_rate) != 0 || sx_get(s->lgc_rate) != 0);
     int min_lleaves = s->min_lleaves;
     if (sp->n_leaves < min_lleaves) min_lleaves = sp->n_leaves;
@@ -126,6 +132,7 @@ static void fast_worker(void *vp)
 
     sx_ltree *lt = NULL;
     if (simulated_locus) {
+        if (verbosity > 2) sx_out("\tSimulating locus tree %d ... ", j->locus);
         sx_check(sx_sim_bdlh_tree(sp, &lt, tl_node_ptrs, sx_get(s->lb_rate), sx_get(s->ld_rate), sx_get(s->lt_rate), sx_get(s->lgc_rate), s->t_kind, r, min_lleaves, s->min_lsleaves, verbosity, &st, getenv("SIMPHY_X_FAST_COMPATPROBS") != NULL), ": simulating a locus tree");
         sx_stree_reindex(sp, 1);
         /* replace the compat probabilities by uniformisation ones */
@@ -139,11 +146,21 @@ static void fast_worker(void *vp)
             sx_check(sx_buf_write_file(&buf, fname), "");
         }
     } else {
+        if (verbosity > 2) sx_out(j->locus == 1 ? "\tInvariable locus tree: Copying the species tree as locus tree... " : "\tInvariable locus tree: Reusing the previous locus tree... ");
         lt = sx_ltree_new(sp->n_nodes, sp->n_leaves, sp->n_gleaves, sp->max_children, sp->gen_time, sp->Ne, sp->mu);
         sx_ltree_copy_from_stree(lt, sp);
         if (s->stats == 1) { st.leaves = lt->n_leaves; st.gleaves = lt->n_gleaves; }
     }
-    if (sx_get(s->alpha_l) != 0) lt->mu = sp->mu * gamma_l;
+    switch (verbosity) {
+    case 0: case 1: case 2: break;
+    case 3: sx_out(" Done"); break;
+    default: { sx_out("\n\tDone: "); sx_buf tb; sx_buf_init(&tb); sx_write_ltree(&tb, lt, names, s->out_time, s->out_labels); sx_buf_append_nonl(&j->log, &tb); sx_buf_free(&tb); break; }
+    }
+    if (sx_get(s->alpha_l) != 0) {
+        if (verbosity > 2) sx_out("\n\tGenerating gene family (locus tree) specific substitution rate heterogeneity...");
+        lt->mu = sp->mu * gamma_l;
+        if (verbosity > 2) sx_out(" Done\n");
+    }
     j->st = st; j->gamma_l = gamma_l; j->n_gleaves = lt->n_gleaves;
 
     sx_write_ltree(&j->ltree_line, lt, names, s->out_time, s->out_labels);
@@ -163,10 +180,26 @@ static void fast_worker(void *vp)
         sx_check(sx_sample_distr(r, 1, gloop), ": sampling distributions");
         sx_check(sx_check_sampled_gloop(s), ": improper sampled values");
         j->alpha_g[g] = sx_get(s->alpha_g);
-        if (!mlc) sx_check(sx_sim_msc_gtree(lt, gt, tl_pool, r, &j->n_extralin[g], s->map > 1 ? 1 : 0, verbosity, collapse), ": simulating a gene tree");
+        if (verbosity > 2) sx_print_settings_gloop(s, g + 1);
+        switch (verbosity) {
+        case 0: case 1: break;
+        case 2: sx_out("\tSimulating gene tree %d... ", (j->locus - 1) * s->ng_trees + g + 1); break;
+        default: sx_out("\n\t\tSimulating gene tree %d using a %s process...", g + 1, mlc ? "multilocus coalescent" : "multispecies coalescent"); break;
+        }
+        if (!mlc) sx_check(sx_sim_msc_gtree(lt, gt, tl_pool, r, &j->n_extralin[g], s->map > 1 ? 1 : 0, 0, collapse), ": simulating a gene tree");
         else sx_check(sx_sim_mlc_gtree_fast(lt, gt, tl_pool, s->epsilon_brent, r, &j->n_extralin[g], collapse, tl_ws, getenv("SIMPHY_X_FAST_COMPATPROBS") != NULL), ": simulating a gene tree");
-        if (sx_get(s->alpha_g) != 0) sx_gtree_rateheter(gt, sx_get(s->alpha_g), r);
+        if (sx_get(s->alpha_g) != 0) {
+            if (verbosity > 2) sx_out("\n\t\tGenerating gene tree branch specific substitution rate heterogeneity...");
+            sx_gtree_rateheter(gt, sx_get(s->alpha_g), r);
+            if (verbosity > 3) sx_out(" Done");
+            else if (verbosity > 2) sx_out(" Done\n\t");
+        }
         sx_write_gtree(&gbuf, gt, names, s->out_labels);
+        switch (verbosity) {
+        case 0: case 1: break;
+        case 2: case 3: sx_out("\tDone\n"); break;
+        default: sx_out("\n\t\tDone: "); { sx_buf tb; sx_buf_init(&tb); sx_write_gtree(&tb, gt, names, s->out_labels); sx_buf_append_nonl(&j->log, &tb); sx_buf_free(&tb); } sx_out("\n"); break;
+        }
         if (s->map > 0 && s->map != 2) {
             snprintf(fname, sizeof fname, "%s/%.*dl%.*dg.maplg", R->dir, R->n_ldigits, j->locus, R->n_gdigits, g + 1);
             sx_buf_clear(&buf);
@@ -180,6 +213,7 @@ static void fast_worker(void *vp)
     sx_check(sx_buf_write_file(&gbuf, fname), "Error opening g_tree file: ");
     sx_buf_free(&gbuf); sx_buf_free(&buf);
     sx_gtree_free(gt); sx_ltree_free(lt); sx_stree_free(sp); sx_settings_snapshot_free(s);
+    sx_out_capture(NULL);
     pthread_mutex_lock(&stat_mu);
     g_bridge += tl_ws->n_bridge; g_bridge_fb += tl_ws->n_bridge_fallback; g_pieces += tl_ws->n_forward_tavare; g_mpfr += tl_ws->n_mpfr;
     tl_ws->n_bridge = tl_ws->n_bridge_fallback = tl_ws->n_forward_tavare = tl_ws->n_mpfr = 0;
@@ -210,6 +244,7 @@ static void rep_release(fast_rep *R)
     if (R->l_outfile) fclose(R->l_outfile);
     if (R->d_outfile) fclose(R->d_outfile);
     if (R->stat_outfile) fclose(R->stat_outfile);
+    sx_buf_free(&R->log);
     sx_stree_free(R->sp_tree);
     if (R->names) sx_names_free(R->names);
     sx_settings_snapshot_free(R->snap);
@@ -220,6 +255,9 @@ static void job_commit(fast_ctx *ctx, fast_job *j)
 {
     sx_settings *s = ctx->s;
     fast_rep *R = j->rep;
+    if (!R->log_flushed) { if (R->log.len) fwrite(R->log.data, 1, R->log.len, stdout); R->log_flushed = 1; }
+    if (j->log.len) fwrite(j->log.data, 1, j->log.len, stdout);
+    sx_buf_free(&j->log);
     sx_buf_append_file(&j->ltree_line, R->l_outfile);
     if (s->out_daughters) sx_buf_append_file(&j->daughters_line, R->d_outfile);
     unsigned long long lid = 0;
@@ -232,7 +270,7 @@ static void job_commit(fast_ctx *ctx, fast_job *j)
     if (s->stats == 1)
         fprintf(R->stat_outfile, "%.*d;%d;%d;%d;%d;%d;%Le;%Le;%Le\n", R->n_ldigits, j->locus, j->st.losses, j->st.dups, j->st.transfr, j->st.leaves, j->st.gleaves, sum_cu / s->ng_trees, sum_bl / s->ng_trees, ((long double)sum_extra) / s->ng_trees);
     R->committed++;
-    if (R->committed == R->nl_trees && s->verbosity >= 1) { printf("Replicate %d: %d loci done\n", R->rep, R->nl_trees); fflush(stdout); }
+    if (R->committed == R->nl_trees && s->verbosity >= 1 && s->verbosity <= 4) { printf("Done\n"); fflush(stdout); }
     sx_buf_free(&j->ltree_line); sx_buf_free(&j->daughters_line);
     free(j->alpha_g); free(j->n_extralin); free(j->height_cu); free(j->length_bl); free(j->height_bl);
     rep_release(R);
@@ -285,7 +323,6 @@ long sx_run_fast(sx_settings *s)
     char *out_name = s->out_name;
     if (out_name == NULL) { out_name = s->out_name = sx_malloc(sizeof("SimPhy_outfiles")); strcpy(out_name, "SimPhy_outfiles"); }
     if (verbosity) sx_print_global_settings(stdout, s);
-    if (verbosity) printf("\n\nsimphy-x: mode fast (independent random streams per locus), %d thread%s\n", nthreads, nthreads == 1 ? "" : "s");
 
     int n_sdigits = (int)sx_count_intdigits((long)s->ns_trees, 0);
     umask(0);
@@ -303,7 +340,7 @@ long sx_run_fast(sx_settings *s)
             fputs(s->confile_text, co);
             fclose(co);
         } fclose(cf); }
-    if (verbosity > 0) printf("\n\nSimulation:\n-----------\n");
+    if (verbosity > 0 && verbosity < 3) printf("\n\nSimulation:\n-----------\n");
 
     sx_sunit *sloop[17] = { &s->bds_leaves, &s->bds_length, &s->sb_rate, &s->sd_rate, &s->outgroup, &s->ind_per_sp, &s->nl_trees, &s->b_rate, &s->d_rate, &s->t_rate, &s->gc_rate, &s->Ne, &s->alpha_s, &s->alpha_l, &s->salpha_g, &s->mu, &s->gen_time };
     int locus_simulated = (sx_is_variable(s->lb_rate) || sx_is_variable(s->ld_rate) || sx_is_variable(s->lt_rate) || sx_is_variable(s->lgc_rate));
@@ -317,6 +354,9 @@ long sx_run_fast(sx_settings *s)
         sx_check(sx_check_sampled_sloop(s, min_lleaves), ": improper sampled values");
         fast_rep *R = sx_calloc(1, sizeof(*R));
         R->rep = curr_stree;
+        sx_buf_init(&R->log);
+        sx_out_capture(&R->log);
+        if (verbosity > 2) sx_print_settings_sloop(s, curr_stree);
         R->nl_trees = (int)sx_get(s->nl_trees);
         R->n_ldigits = (int)sx_count_intdigits((long)R->nl_trees, 0);
         R->n_gdigits = (int)sx_count_intdigits((long)s->ng_trees, 0);
@@ -332,12 +372,27 @@ long sx_run_fast(sx_settings *s)
                 sx_check(SX_SETTINGS_ERROR, "\n\t\tERROR:The minimum number of locus tree leaves is bigger than the number of leaves of the fixed species tree. Please, check the -Ll parameter and the input species tree.\n");
             sx_stree_collapse(sp_tree, 0);
         } else {
+            if (verbosity > 2) sx_out("\nSimulating the species tree...");
             sx_check(sx_new_bds_tree(&sp_tree, (int)sx_get(s->bds_leaves), sx_get(s->bds_length), sx_get(s->sb_rate), sx_get(s->sd_rate), gen_time, (int)sx_get(s->Ne), sx_get(s->mu), (int)sx_get(s->ind_per_sp), sx_get(s->outgroup), 0, 1, r, verbosity), ": simulating the species tree");
             sx_stree_collapse(sp_tree, 0);
-            if (sp_tree->n_leaves < min_lleaves) min_lleaves = sp_tree->n_leaves;
+            if (verbosity > 3) { sx_buf tb; sx_buf_init(&tb); sx_write_stree(&tb, sp_tree, NULL, s->out_time, s->out_labels); sx_buf_append_nonl(&R->log, &tb); sx_buf_free(&tb); sx_out("\n"); }
+            if (sp_tree->n_leaves < min_lleaves) {
+                if (verbosity > 2) sx_out("\n\t\tThe number of minimum locus tree leaves will be changed to the number of species tree leaves to avoid infinite loops.\n\t\t");
+                min_lleaves = sp_tree->n_leaves;
+            }
         }
-        if (sx_get(s->alpha_s) != 0) sx_stree_rateheter(sp_tree, sx_get(s->alpha_s), r);
-        if (verbosity >= 1) { printf("Replicate %u of %u: %d taxa, simulating %u gene trees from %d locus trees...\n", curr_stree, s->ns_trees, sp_tree->n_leaves, (unsigned)(R->nl_trees * s->ng_trees), R->nl_trees); fflush(stdout); }
+        if (sx_get(s->alpha_s) != 0) {
+            if (verbosity > 2) sx_out("\tGenerating lineage specific substitution rate heterogeneity...");
+            sx_stree_rateheter(sp_tree, sx_get(s->alpha_s), r);
+            if (verbosity > 2) sx_out(" Done\n");
+        }
+        if (verbosity > 2) sx_out("Done\n");
+        switch (verbosity) {
+        case 1: sx_out("Replicate %u of %u: Simulating %u gene trees from %d locus trees... ", curr_stree, s->ns_trees, (unsigned)(R->nl_trees * s->ng_trees), R->nl_trees); break;
+        case 2: sx_out("\nReplicate %u of %u: Simulating %u gene trees from %d locus trees...\n", curr_stree, s->ns_trees, (unsigned)(R->nl_trees * s->ng_trees), R->nl_trees); break;
+        default: break;
+        }
+        sx_out_capture(NULL);
 
         sprintf(fname, "%s/s_tree.trees", R->dir);
         sx_buf_clear(&buf); sx_write_stree(&buf, sp_tree, names, s->out_time, s->out_labels);
@@ -364,7 +419,8 @@ long sx_run_fast(sx_settings *s)
         }
     }
     commit_ready(&ctx, 0, 1);
-    if (verbosity > 0) printf("Done\n");
+    if (verbosity == 0) printf("Done\n");
+    else if (verbosity > 2) printf("\nDone \n");
     if (getenv("SIMPHY_X_DEBUG")) fprintf(stderr, "[simphy-x] bridges=%lu bridge_fallbacks=%lu forward_pieces=%lu mpfr_escalations=%lu\n", g_bridge, g_bridge_fb, g_pieces, g_mpfr);
     if (s->db > 0) sx_check(sx_db_close(&ctx.database), NULL);
     if (ctx.pool) sx_tpool_free(ctx.pool);

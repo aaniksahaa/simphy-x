@@ -145,3 +145,35 @@ int sx_buf_append_file(const sx_buf *b, FILE *f)
     if (b->len && fwrite(b->data, 1, b->len, f) != b->len) return SX_IO_ERROR;
     return SX_NO_ERROR;
 }
+
+static __thread sx_buf *out_capture = NULL;
+void sx_out_capture(sx_buf *b) { out_capture = b; }
+sx_buf *sx_out_current(void) { return out_capture; }
+void sx_out(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    if (out_capture) {
+        va_list ap2; va_copy(ap2, ap);
+        sx_buf_reserve(out_capture, 256);
+        int n = vsnprintf(out_capture->data + out_capture->len, out_capture->cap - out_capture->len, fmt, ap);
+        if (n >= 0 && (size_t)n >= out_capture->cap - out_capture->len) {
+            sx_buf_reserve(out_capture, (size_t)n + 1);
+            n = vsnprintf(out_capture->data + out_capture->len, out_capture->cap - out_capture->len, fmt, ap2);
+        }
+        va_end(ap2);
+        if (n > 0) out_capture->len += (size_t)n;
+    } else {
+        vprintf(fmt, ap);
+    }
+    va_end(ap);
+}
+
+void sx_buf_append_nonl(sx_buf *dst, const sx_buf *src)
+{
+    size_t n = src->len;
+    while (n > 0 && src->data[n - 1] == '\n') --n;
+    sx_buf_reserve(dst, n);
+    memcpy(dst->data + dst->len, src->data, n);
+    dst->len += n; dst->data[dst->len] = 0;
+}

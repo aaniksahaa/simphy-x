@@ -38,8 +38,27 @@ per species branch and on expected locus-tree leaves; raise it for large duplica
 fast-mode sampler counters; `SIMPHY_X_PROBLOG=file` logs compat-mode lineage-count
 probability evaluations.
 
-Not supported yet: Nexus tree files (`-SR`, `-LR`), fixed locus trees (`-L`), configuration
-files (`-I`). The program exits with a settings error for these.
+Not supported yet: Nexus tree files (`-SR`, `-LR`) and fixed locus trees (`-L`). The program
+exits with a settings error for these. Configuration files (`-I`) are supported (one
+`-CODE value` per line, `#`/`//` comments; command-line options take precedence; the file is
+copied to `<prefix>.conf` when `-OC 1`).
+
+## Program text (stdout)
+
+After the simphy-x banner (ASCII art, version, mode, thread count, separator line) the
+program text is SimPhy's, character for character, for verbosity 0–4: the settings block,
+replicate/locus/gene-tree parameter blocks, progress messages, and the trees echoed at
+verbosity 4. Loci finish out of order in parallel runs, so their text is buffered and printed
+in locus order. Verbosity 5–6 (SimPhy's per-coalescence debugging output) prints the level-4
+text only. `tests/verify_compat.sh` checks stdout too when `SX_CHECK_STDOUT=1`.
+
+## Portable binary
+
+`make static` builds `bin/simphy-x-static`, a fully static x86-64 Linux executable (glibc, GSL,
+MPFR, GMP, SQLite all linked in, 3.5 MB). It runs on any x86-64 Linux without dependencies and
+gives byte-identical output on every machine, because the `exp`/`log` implementation is baked
+in (the dynamically linked `simphy-x` and SimPhy itself use the host's libm). The one
+harmless link warning concerns SQLite's `dlopen` for loadable extensions, which are not used.
 
 ## Which mode to use
 
@@ -48,6 +67,10 @@ files (`-I`). The program exits with a settings error for these.
   the duplication/loss pipelines gain the parallel evaluation of the arbitrary-precision
   chains (4–5× on 16 cores; the remaining part is inherently sequential because SimPhy uses
   one random stream).
+* At large scale SimPhy 1.0.2 cannot run some duplication/loss cases at all: with 2000 taxa
+  its 512-bit MPFR sampler aborts ("MPFR out of precision"), and compat mode aborts identically
+  after the same 495 MB → 33 MB of memory; fast mode completes them (2001-leaf gene trees,
+  7 MB).
 * New datasets, large taxon counts, duplication/loss models: `fast`. Same distributions
   (verified statistically, see 04-verification.md), 50–150× faster than SimPhy on
   duplication/loss scenarios, deterministic for a given seed regardless of thread count.

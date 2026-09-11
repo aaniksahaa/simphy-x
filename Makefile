@@ -13,6 +13,12 @@ BIN := bin/simphy-x
 
 all: $(BIN)
 
+# fully static, portable x86-64 Linux binary (libc/libm baked in: identical output on any machine)
+static: $(OBJ)
+	@mkdir -p bin
+	$(CC) $(CFLAGS) $(LDFLAGS) -static $^ -o bin/simphy-x-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lgsl -lgslcblas -lsqlite3 -lmpfr -lgmp -lm -ldl
+	@echo "built bin/simphy-x-static"
+
 $(BIN): $(OBJ)
 	@mkdir -p bin
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
@@ -48,6 +54,7 @@ check: $(BIN) build/unif_test
 	tests/verify_compat.sh /tmp/simphy-x-verify 1 4
 
 install: $(BIN)
+
 	install -d $(DESTDIR)$(PREFIX)/bin
 	install -m 755 $(BIN) $(DESTDIR)$(PREFIX)/bin/simphy-x
 
@@ -56,4 +63,4 @@ PREFIX ?= /usr/local
 clean:
 	rm -rf build bin
 
-.PHONY: all clean tests check install
+.PHONY: all clean tests check install static

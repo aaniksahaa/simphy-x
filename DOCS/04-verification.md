@@ -19,7 +19,9 @@ the requested thread counts, and compares:
   `stats.txt`);
 * `*.params`: identical except the "Output files prefix" line (it contains the directory name);
 * `*.db`: identical table contents (SQLite files themselves embed the library version);
-* exit codes (error paths included).
+* exit codes (error paths included);
+* with `SX_CHECK_STDOUT=1`, the program text after the banner separator (verbosity 0–4;
+  the output-directory name is normalised).
 
 Cases: MSC pipelines (fixed and sampled parameters, 500 taxa × 50 loci), outgroup + several
 individuals per species + time units + node labels + stats, SSA species trees (with/without
@@ -28,7 +30,8 @@ two individuals), HGT with both receptor-choice modes, gene conversion, genome-w
 dependent sampling units, minimum-leaves settings (error path), generation-time units, fixed
 Newick species trees (plain, with per-node Ne and individual counts, with GDL+HGT).
 
-Result: **20/20 identical with 1, 2, 4 and 16 threads.** Larger checks: GDL 200 taxa × 20 and
+Result: **22/22 identical (files and stdout) with 1, 2, 4 and 16 threads**, also with the
+fully static build `bin/simphy-x-static`. Larger checks: GDL 200 taxa × 20 and
 × 100 loci identical to the oracle (1 and 16 threads), MSC 10 000 taxa × 100 loci identical.
 
 ## 3. Fast-mode numerics — `tests/unif_test.c`
@@ -86,6 +89,7 @@ Results (GDL, dup 2.05e-10, loss 0.1×, Ne 2.9e8, 1000 loci per side):
 | GDL 200 taxa × 100 loci | 78 s | 8.6 s / 20 MB | 1.97 s / 19 MB | 0.42 s / 222 MB |
 | GDL 500 taxa × 20 loci, dup ≈ 3 copies (≈ 1000-leaf gene trees) | ≈ 140 s (extrapolated) | 13.5 s / 46 MB | 1.88 s / 34 MB | 0.76 s / 158 MB |
 | MSC 10 000 taxa × 100 loci | 2.2 s / **1.58 GB** | 0.78 s / 23 MB | — | 0.25 s / 117 MB |
+| GDL 2000 taxa × 3 loci (dup 6e-11) | aborts after 5.2 s / 495 MB ("MPFR out of precision") | aborts identically, 33 MB | — | completes, 2001-leaf trees, 7 MB |
 
 Compat mode's remaining sequential part (species/locus trees, count sampling, the
 double-precision attempts, pair choices) is 2.5–3 s of the 200×100 run; everything else is the

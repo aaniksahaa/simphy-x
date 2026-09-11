@@ -32,6 +32,8 @@ CASES=(
 "fixed_msc|-s (((A:1000000,B:1000000):500000,(C:800000,D:800000):700000):300000,E:1800000); -rs 2 -rl f:8 -rg 1 -sp f:20000 -su f:0.00001 -om 1 -od 1 -op 1 -on 1 -v 1 -cs 61"
 "fixed_msc_annot|-s (((A:1000000#30000/2,B:1000000):500000#40000,(C:800000,D:800000/3):700000):300000,E:1800000); -rs 1 -rl f:6 -rg 1 -sp f:20000 -su f:0.00001 -si f:2 -om 1 -od 1 -op 1 -ol 1 -v 1 -cs 67"
 "fixed_gdl|-s (((A:1000000,B:1000000):500000,(C:800000,D:800000):700000):300000,E:1800000); -rs 2 -rl f:10 -rg 1 -sp f:100000 -su f:0.00001 -lb f:0.0000008 -ld f:0.0000004 -lt f:0.0000003 -om 1 -on 1 -od 1 -os 1 -op 1 -v 1 -cs 71"
+"gdl_v4|-sl f:8 -rs 2 -rl f:4 -rg 2 -sb f:0.000001 -st f:1000000 -sp f:100000 -su f:0.00001 -lb f:0.0000006 -ld f:0.0000003 -hs f:2 -hl f:1.5 -hg f:1 -om 1 -on 1 -cs 53 -v 4"
+"msc_v0|-sb f:0.000001 -rs 2 -rl f:5 -rg 1 -sp f:20000 -su f:0.00001 -sl f:12 -st f:500000 -v 0 -cs 59"
 "gdl_ot1|-sl f:8 -rs 1 -rl f:5 -rg 1 -sb f:0.000002 -st f:800000 -sg f:2.5 -sp f:100000 -su f:0.00001 -lb f:0.0000005 -ld f:0.0000003 -ot 1 -ol 1 -cs 47 -v 1"
 )
 
@@ -71,6 +73,11 @@ for entry in "${CASES[@]}"; do
         ( cd "$WORK" && $NEW $args -o "${name}_new" -XT "$t" >"${name}_new_t$t.log" 2>&1 ); rc_new=$?
         if [[ $rc_ref -ne $rc_new ]]; then echo "[$name t=$t] exit codes differ: ref=$rc_ref new=$rc_new"; ok=0; fi
         if [[ $rc_ref -eq 0 ]] && ! compare_dir "$WORK/${name}_ref" "$WORK/${name}_new" "${name}_ref" "${name}_new"; then ok=0; echo "[$name t=$t] MISMATCH"; fi
+        if [[ -n "${SX_CHECK_STDOUT:-}" && $rc_ref -eq 0 ]]; then
+            # program text after the banner separator; the output-directory name differs by construction
+            strip() { awk 'f{print} /^-{20,}$/{f=1}' "$1" | sed "s/${name}_ref/OUT/g; s/${name}_new/OUT/g"; }
+            if ! diff <(strip "$WORK/${name}_ref.log") <(strip "$WORK/${name}_new_t$t.log") > "$WORK/${name}_stdout_t$t.diff"; then ok=0; echo "[$name t=$t] STDOUT DIFFERS ($(wc -l < "$WORK/${name}_stdout_t$t.diff") diff lines)"; fi
+        fi
         rm -rf "$WORK/${name}_new"
     done
     if [[ $ok -eq 1 ]]; then echo "[$name] OK (ref rc=$rc_ref)"; pass=$((pass+1)); else fail=$((fail+1)); failed_cases+=("$name"); fi

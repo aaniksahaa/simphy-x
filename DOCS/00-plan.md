@@ -72,3 +72,10 @@ Living document. Newest entries at the bottom of each phase.
 - [x] Fixed Newick species trees (-S) with per-node annotations; configuration files (-I) with the .conf copy
 - [ ] Nexus tree files (-SR, -LR) and fixed locus trees (-L): not implemented (settings error), see 03-usage.md
 - [x] Pipeline integration: duploss-sim.sh --upto true with --simphy-bin bin/simphy-x gives identical output
+
+## Phase 6 — fidelity and packaging follow-ups (done 2026-09-12)
+- [x] SimPhy's stdout text reproduced character for character for verbosity 0–4 (own banner first); per-locus text
+      buffered and flushed in locus order in parallel runs; verify_compat.sh checks stdout with SX_CHECK_STDOUT=1 (22/22)
+- [x] `make static`: fully static portable binary, byte-identical on the matrix
+- [x] GDL memory at scale: 2000 taxa SimPhy 495 MB → compat 33 MB (both abort with SimPhy's MPFR precision error), fast 7 MB
+- [ ] still not implemented: -SR/-LR Nexus files, -L fixed locus trees; verbosity 5–6 debugging prints

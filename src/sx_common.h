@@ -74,4 +74,13 @@ int sx_buf_append_file(const sx_buf *b, FILE *f);
 extern int sx_verbosity;
 #define SX_LOG(level, ...) do { if (sx_verbosity >= (level)) { printf(__VA_ARGS__); } } while (0)
 
+/* Program text output.  When a thread-local capture buffer is set, the text is
+ * appended to it (per-locus text is emitted later in locus order); otherwise it
+ * goes to stdout.  Used for every message SimPhy prints during a simulation. */
+void sx_out(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+void sx_out_capture(sx_buf *b);      /* NULL = back to stdout */
+sx_buf *sx_out_current(void);
+/* Append src to dst without a trailing newline (SimPhy's stdout tree writers end with ");"). */
+void sx_buf_append_nonl(sx_buf *dst, const sx_buf *src);
+
 #endif

@@ -16,7 +16,8 @@ multilocus coalescent, rate heterogeneity).
   double-precision shortcut occasionally does not (DOCS/01-reference-analysis.md §7).
 
 ```
-make
+make            # bin/simphy-x
+make static     # bin/simphy-x-static, fully static portable binary
 bin/simphy-x -h
 bin/simphy-x <SimPhy options> [-XM compat|fast] [-XT threads]
 ```

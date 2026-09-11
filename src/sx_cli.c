@@ -417,3 +417,78 @@ sx_settings *sx_settings_snapshot(const sx_settings *src)
 }
 
 void sx_settings_snapshot_free(sx_settings *s) { free(s); }
+
+/* PrintSettingsSloop port (verbosity > 2, once per replicate). */
+void sx_print_settings_sloop(const sx_settings *s, int n_replicate)
+{
+    char buffer[128];
+    sx_out("\n\nReplicate %u parameters:\n------------------------\n\nTrees:", (unsigned)n_replicate);
+    if (s->locus_tree_str != NULL || s->n_iltrees > 0) {
+        sx_out("\n\t-Species tree: Not taken into consideration\n");
+        if (s->ltree_iname != NULL) sx_out("\t-Locus trees: %d fixed trees found in %s", s->n_iltrees, s->ltree_iname);
+        else sx_out("\t-Locus tree: Fixed\n\t\t--> %s", s->locus_tree_str);
+        if (sx_get(s->gen_time) != 1) sx_out("\n\t\t-Time units: time\n\t\t-Generation time %e\n", sx_get(s->gen_time));
+        else sx_out("\n\t\t-Time units: generations\n");
+    } else {
+        if (s->species_tree_str != NULL) {
+            sx_out("\n\t-Species tree: Fixed\n\t\t--> %s", s->species_tree_str);
+            if (sx_get(s->gen_time) != 1) sx_out("\n\t\t-Time units: time\n\t\t-Generation time %e\n", sx_get(s->gen_time));
+            else sx_out("\n\t\t-Time units: generations\n");
+        } else {
+            if (sx_get(s->gen_time) != 1) {
+                sx_out("\n\t-Species tree: Birth-death simulation\n\t\t-Speciation rate (per time unit): %e", sx_get(s->sb_rate));
+                sx_out("\n\t\t-Extinction rate (per time unit): %e", sx_get(s->sd_rate));
+                if (sx_get(s->outgroup) > 0 || s->outgroup.distribution_code != 0) sx_out("\n\t\t-Outgroup addition:\n\t\t\t-Ingroup divergence/divergence to the ingroup ratio: %e", sx_get(s->outgroup));
+                else sx_out("\n\t\t-Outgroup addition: No addition");
+                if (sx_get(s->bds_leaves) > 0 || s->bds_leaves.distribution_code != 0) sx_out("\n\t\t-Stopping rules:\n\t\t\t-Number of leaves: %lf", sx_get(s->bds_leaves));
+                else sx_out("\n\t\t-Stopping rules:\n\t\t\t-Number of leaves: %s", "Not used");
+                if (sx_get(s->bds_length) > 0 || s->bds_length.distribution_code != 0) sx_out("\n\t\t\t-Time: %e", sx_get(s->bds_length));
+                else sx_out("\n\t\t\t-Time: %s", "Not used");
+                sx_out("\n\t\t-Time units: time\n\t\t-Generation time %e\n", sx_get(s->gen_time));
+                sx_out("\t\tNOTE: The intensity of the b-d process corresponds to the time units instead of the number of generations\n");
+            } else {
+                sx_out("\n\t-Species tree: Birth-death simulation\n\t\t-Speciation rate: %e", sx_get(s->sb_rate));
+                sx_out("\n\t\t-Extinction rate: %e", sx_get(s->sd_rate));
+                if (sx_get(s->outgroup) > 0 || s->outgroup.distribution_code != 0) sx_out("\n\t\t-Outgroup addition:\n\t\t\t-Ingroup divergence/divergence to the ingroup ratio: %e", sx_get(s->outgroup));
+                else sx_out("\n\t\t-Outgroup addition: No addition");
+                if (sx_get(s->bds_leaves) > 0 || s->bds_leaves.distribution_code != 0) sx_out("\n\t\t-Stopping rules:\n\t\t\t-Number of leaves: %lf", sx_get(s->bds_leaves));
+                else sx_out("\n\t\t-Stopping rules:\n\t\t\t-Number of leaves: %s", "Not used");
+                if (sx_get(s->bds_length) > 0 || s->bds_length.distribution_code != 0) sx_out("\n\t\t\t-Generations: %e", sx_get(s->bds_length));
+                else sx_out("\n\t\t\t-Generations: %s", "Not used");
+                sx_out("\n\t\t-Time units: generations\n");
+            }
+        }
+        if (!(sx_is_variable(s->lb_rate) || sx_is_variable(s->ld_rate) || sx_is_variable(s->lt_rate) || sx_is_variable(s->lgc_rate)))
+            sx_out("\n\t-%u Locus trees: directly obtained from the species tree (no birth-death process)\n", (unsigned)sx_get(s->nl_trees));
+        else {
+            sx_out("\n\t-%u Locus trees: birth-death simulation\n\t\t-Genome-wide duplication parameter: %e", (unsigned)sx_get(s->nl_trees), sx_get(s->b_rate));
+            sx_out("\n\t\t-Genome-wide loss parameter: %e", sx_get(s->d_rate));
+            sx_out("\n\t\t-Genome-wide transfer parameter: %e", sx_get(s->t_rate));
+            sx_out("\n\t\t-Genome-wide gene conversion parameter: %e", sx_get(s->gc_rate));
+            sx_out("\n\t\t-Minimum number of leaves: %u\n\t\t-Minimum number of leaves from different species: %u\n", (unsigned)s->min_lleaves, (unsigned)s->min_lsleaves);
+        }
+    }
+    sx_out("\n\t-Gene trees: %d multilocus coalescent simulations\n", s->ng_trees);
+    sx_out("\nParameters:\n\t-Haploid efective population size: %e", sx_get(s->Ne));
+    sx_out("\n\t-Global substitution rate: %e", sx_get(s->mu));
+    snprintf(buffer, sizeof buffer, "%e", sx_get(s->alpha_s));
+    sx_out("\n\t-Substitution rate heterogeneities\n\t\t-Lineage (species) specific rate heterogeneity gamma shape: %s", sx_get(s->alpha_s) == 0 ? "No heterogeneity" : buffer);
+    snprintf(buffer, sizeof buffer, "%e", sx_get(s->alpha_l));
+    sx_out("\n\t\t-Gene family (locus tree) specific rate heterogeneity gamma shape: %s", sx_get(s->alpha_l) == 0 ? "No heterogeneity" : buffer);
+    snprintf(buffer, sizeof buffer, "%e", sx_get(s->salpha_g));
+    sx_out("\n\t\t-Gene tree branch specific rate heterogeneity gamma shape: Genome-wide parameter %s", sx_get(s->salpha_g) == 0 ? "No heterogeneity" : buffer);
+    sx_out("\n\t-Individuals per species: %e \n\nSimulation:\n-----------\n", sx_get(s->ind_per_sp));
+}
+
+void sx_print_settings_lloop(const sx_settings *s, int curr_ltree, double gamma_l)
+{
+    if (sx_get(s->lb_rate) != 0 || sx_get(s->ld_rate) != 0 || sx_get(s->lt_rate) != 0 || sx_get(s->lgc_rate) != 0)
+        sx_out("\n\tLocus tree %d parameters:\n\t-----------------------\n\t-Duplication rate (per generation): %e\n\t-Loss rate (per generation): %e\n\t-Transfer rate (per generation): %e\n\t-Gene conversion rate (per generation): %e\n\t-Gene family rate multiplier %e\n\t-Gene-tree-branch-specific heterogeneity locus-tree related parameter (hyperparameter) %e\n\n", curr_ltree, sx_get(s->lb_rate), sx_get(s->ld_rate), sx_get(s->lt_rate), sx_get(s->lgc_rate), gamma_l, sx_get(s->lalpha_g));
+    else
+        sx_out("\n\tLocus tree %d parameters:\n\t-----------------------\n\t-Fixed\n\t-Gene family rate multiplier %e\n\t-Gene-tree-branch-specific heterogeneity locus-tree related parameter (hyperparameter) %e\n\n", curr_ltree, gamma_l, sx_get(s->lalpha_g));
+}
+
+void sx_print_settings_gloop(const sx_settings *s, int curr_gtree)
+{
+    sx_out("\n\t\tGene tree %d parameters:\n\t\t--------------------\n\t\t-Gene tree branch specific heterogeneity parameter %e\n", curr_gtree, sx_get(s->alpha_g));
+}
