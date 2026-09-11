@@ -115,8 +115,8 @@ static void g_leaf(wctx *cx, int p)
     case RTRFR: pre = "Rtransf"; break;
     case RGC: pre = "Rgc"; break;
     }
-    if (st->n_child[t->conts[p]] == 0 && cx->names != NULL) sx_buf_printf(cx->b, "%s-%s_%d_0:%.8lf", pre, nm(cx->names, t->sp_index[p]), t->paralog[p], t->bl[p]);
-    else sx_buf_printf(cx->b, "%s-%d_%d_0:%.8lf", pre, st->index[t->conts[p]], t->paralog[p], t->bl[p]);
+    if (st && t->conts[p] >= 0 && st->n_child[t->conts[p]] == 0 && cx->names != NULL) sx_buf_printf(cx->b, "%s-%s_%d_0:%.8lf", pre, nm(cx->names, t->sp_index[p]), t->paralog[p], t->bl[p]);
+    else sx_buf_printf(cx->b, "%s-%d_%d_0:%.8lf", pre, (st && t->conts[p] >= 0) ? st->index[t->conts[p]] : t->contl[p], t->paralog[p], t->bl[p]);
 }
 static void g_close(wctx *cx, int p)
 {

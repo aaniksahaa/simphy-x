@@ -1,0 +1,6 @@
+#NEXUS
+BEGIN TREES;
+tree l1 = ((A[&paralog=0]:10000,(B[&paralog=0]:5000,B[&paralog=1]:5000)[&kind_n=1]:5000):5000,(C:12000,D[&kind_n=2]:9000):3000);
+tree l2 = (((A[&n_ind=3]:4000,B:4000):6000,(C[&paralog=0]:8000,C[&paralog=1,pop_size=30000]:8000)[&kind_n=1]:2000):5000,(D[&paralog=0]:9000,D[&paralog=1,u_mult=1.5]:9000)[&kind_n=1]:6000);
+tree l3 = ((A:10000,B:10000)[&pop_size=5000]:5000,(C[&u_mult=0.5]:12000,D:12000):3000);
+End;

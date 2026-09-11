@@ -1,0 +1,5 @@
+#NEXUS
+BEGIN TREES;
+tree t1 = ((A[&pop_size=20000,n_ind=3]:10000,B[&u_mult=2.0]:10000)[&pop_size=5000]:5000,(C[&u_mult=0.5]:12000,D:12000):3000);
+tree t2 = (((A:4000,B:4000):6000,C[&n_ind=1]:10000):5000,D[&pop_size=50000]:15000);
+End;

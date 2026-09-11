@@ -6,7 +6,7 @@ duplication, loss, transfer and gene conversion, gene trees under the multispeci
 multilocus coalescent, rate heterogeneity).
 
 * **compat mode (default)**: byte-identical output to SimPhy 1.0.2 for the same command line
-  and seed, with any number of threads (verified on a 20-case matrix); O(n) memory instead of
+  and seed, with any number of threads (verified on a 28-case matrix covering every input form, `-S`/`-SR`/`-L`/`-LR` included); O(n) memory instead of
   O(n²) (10 000 taxa: 1.6 GB → 10 MB); the arbitrary-precision work of duplication/loss
   simulations runs in parallel (200 taxa × 100 loci: 78 s → 8.6 s on 16 cores).
 * **fast mode** (`-XM fast`): same model, independent random streams per locus, uniformisation
@@ -16,8 +16,8 @@ multilocus coalescent, rate heterogeneity).
   double-precision shortcut occasionally does not (DOCS/01-reference-analysis.md §7).
 
 ```
-make            # bin/simphy-x
-make static     # bin/simphy-x-static, fully static portable binary
+make            # bin/simphy-x (fully static, portable: copy it anywhere on x86-64 Linux)
+make dynamic    # bin/simphy-x-dynamic, linked against the host glibc instead
 bin/simphy-x -h
 bin/simphy-x <SimPhy options> [-XM compat|fast] [-XT threads]
 ```

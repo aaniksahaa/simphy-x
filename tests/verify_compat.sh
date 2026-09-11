@@ -35,6 +35,12 @@ CASES=(
 "gdl_v4|-sl f:8 -rs 2 -rl f:4 -rg 2 -sb f:0.000001 -st f:1000000 -sp f:100000 -su f:0.00001 -lb f:0.0000006 -ld f:0.0000003 -hs f:2 -hl f:1.5 -hg f:1 -om 1 -on 1 -cs 53 -v 4"
 "msc_v0|-sb f:0.000001 -rs 2 -rl f:5 -rg 1 -sp f:20000 -su f:0.00001 -sl f:12 -st f:500000 -v 0 -cs 59"
 "gdl_ot1|-sl f:8 -rs 1 -rl f:5 -rg 1 -sb f:0.000002 -st f:800000 -sg f:2.5 -sp f:100000 -su f:0.00001 -lb f:0.0000005 -ld f:0.0000003 -ot 1 -ol 1 -cs 47 -v 1"
+"nexus_stree|-SR $ROOT/tests/inputs/species.nex -rl f:3 -rg 1 -sp f:10000 -su f:0.00001 -si f:2 -lb f:0.00002 -ld f:0.00002 -lt f:0.00001 -cs 5 -om 1 -od 1 -op 1 -oc 1 -v 1"
+"nexus_stree_annot|-SR $ROOT/tests/inputs/species_annot.nex -rl f:3 -rg 1 -sp f:10000 -su f:0.00001 -si f:2 -lb f:0.0001 -ld f:0.0001 -cs 5 -om 1 -od 1 -ol 1 -v 4"
+"fixed_ltree|-L ((A_0:10000,(B_0:5000,B_1:5000)%1:5000):5000,(C_0:12000,D_0%2:9000):3000); -rl f:3 -rg 1 -sp f:10000 -su f:0.00001 -si f:2 -cs 5 -od 1 -op 1 -oc 1 -v 1"
+"fixed_ltree_ind|-L (((A_0/3:4000,B_0:4000):6000,(C_0:8000,C_1:8000)%1:2000):5000,(D_0:9000,D_1:9000)%1:6000); -rl f:2 -rs 2 -sp f:10000 -su f:0.00001 -si f:2 -cs 7 -od 1 -ol 1 -hg f:2 -v 4"
+"nexus_ltree|-LR $ROOT/tests/inputs/locus.nex -rs 2 -sp f:10000 -su f:0.00001 -si f:2 -cs 9 -od 1 -op 1 -oc 1 -v 1"
+"nexus_ltree_gt|-LR $ROOT/tests/inputs/locus.nex -rs 1 -sp f:10000 -su f:0.00001 -si f:2 -sg f:2 -cs 9 -od 1 -ol 1 -v 4"
 )
 
 compare_dir() {

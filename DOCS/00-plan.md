@@ -23,7 +23,7 @@ Living document. Newest entries at the bottom of each phase.
 - [x] tests/verify_compat.sh green on the 17-case matrix (trees, maps, daughters, stats byte-identical; .params identical
       except the prefix line; .db identical by content; exit codes identical)
 - [x] Measured: MSC 10k taxa × 100 loci: RSS 1.58 GB → 10 MB, 2.2 s → 1.4 s; GDL 200 × 20: identical output, 23.6 MB → 4.5 MB
-- Not yet supported (Phase 5): -S/-SR/-L/-LR fixed trees, -I config files
+- Fixed trees and config files were added in Phases 5 and 7
 
 ## Phase 3 — compat parallel (still byte-exact) (done 2026-09-11, one item deferred)
 - [x] record/replay split of the MLC gene-tree simulation (sx_mlc_trace), deferred MPFR chain jobs, pthread pool (sx_tpool)
@@ -70,12 +70,25 @@ Living document. Newest entries at the bottom of each phase.
 ## Phase 5 — packaging (done 2026-09-11 except the items marked open)
 - [x] Makefile (static deps, `make`, `make tests`, `make check`, `make install`), README, DOCS/03-usage.md, DOCS/04-verification.md
 - [x] Fixed Newick species trees (-S) with per-node annotations; configuration files (-I) with the .conf copy
-- [ ] Nexus tree files (-SR, -LR) and fixed locus trees (-L): not implemented (settings error), see 03-usage.md
+- [x] Nexus tree files (-SR, -LR) and fixed locus trees (-L): Phase 7
 - [x] Pipeline integration: duploss-sim.sh --upto true with --simphy-bin bin/simphy-x gives identical output
 
 ## Phase 6 — fidelity and packaging follow-ups (done 2026-09-12)
 - [x] SimPhy's stdout text reproduced character for character for verbosity 0–4 (own banner first); per-locus text
       buffered and flushed in locus order in parallel runs; verify_compat.sh checks stdout with SX_CHECK_STDOUT=1 (22/22)
-- [x] `make static`: fully static portable binary, byte-identical on the matrix
+- [x] `make static` (now the default `make`): fully static portable binary, byte-identical on the matrix
 - [x] GDL memory at scale: 2000 taxa SimPhy 495 MB → compat 33 MB (both abort with SimPhy's MPFR precision error), fast 7 MB
-- [ ] still not implemented: -SR/-LR Nexus files, -L fixed locus trees; verbosity 5–6 debugging prints
+- [ ] verbosity 5–6 debugging prints (level-4 text is printed instead)
+
+## Phase 7 — remaining SimPhy inputs (done 2026-09-12)
+- [x] `-L` fixed locus trees (ParseNewickLTree/CheckNewickLTree port: `%kind`, `_paralog`, `/n`, `#Ne`, `*mu`, `~gt`),
+      post-order indices before the echo, RefineLNodes counting (a loss also counts as a gene conversion, as in SimPhy),
+      no species tree: zero species-tree DB row, no s_tree.trees, mappings off
+- [x] `-SR` / `-LR` Nexus files (NNexusTrees/InitNexusParser/NextNexusTree, ParseNexusSTree/ParseNexusLTree with
+      `[&...]` comments, CheckNexusTree); `-RS`/`-RL` overridden by the tree counts with SimPhy's warnings
+- [x] both run loops (compat: names table owned by the locus job; fast: Nexus locus strings read up front per replicate,
+      parsed inside the worker)
+- [x] verify_compat.sh: 6 new cases (28 total), 28/28 files + stdout identical at 1, 4 and 16 threads
+- [x] fast mode on a fixed locus tree: same leaf sets, root-height KS p = 0.61 vs compat (3000 loci)
+- SimPhy failures found on these inputs (simphy-x proceeds; documented in 03-usage.md and 01-reference-analysis.md §9):
+  `-HL` and `-OT 1` with fixed locus trees crash SimPhy; the Nexus reader uses an uninitialised buffer

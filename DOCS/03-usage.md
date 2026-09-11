@@ -3,7 +3,8 @@
 ## Build
 
 ```
-make            # → bin/simphy-x  (GSL, MPFR, GMP, SQLite linked statically from deps/)
+make            # → bin/simphy-x          fully static, portable (the binary to distribute)
+make dynamic    # → bin/simphy-x-dynamic  linked against the host glibc/libm
 make clean
 ```
 
@@ -28,6 +29,7 @@ New options:
 | `-XM compat` (default) | byte-identical output to SimPhy 1.0.2 for the same command and seed, at any thread count |
 | `-XM fast` | same model and distributions; independent random stream per (replicate, locus); no arbitrary-precision arithmetic in the common path; fully parallel |
 | `-XT n` | number of threads (default: all cores). Output never depends on `n` |
+| `-XR 1` | compat only: where SimPhy 1.0.2 aborts with "MPFR out of precision" (bounded subtrees with several hundred lineages), retry with doubled precision instead. Output is identical up to that locus and deterministic afterwards, but no longer comparable to SimPhy, which has no output there. A note is printed on stderr when it triggers |
 | `-XV`, `--version` | print the version |
 
 Long forms `--mode`, `--threads`, `--help` are also accepted.
@@ -38,10 +40,42 @@ per species branch and on expected locus-tree leaves; raise it for large duplica
 fast-mode sampler counters; `SIMPHY_X_PROBLOG=file` logs compat-mode lineage-count
 probability evaluations.
 
-Not supported yet: Nexus tree files (`-SR`, `-LR`) and fixed locus trees (`-L`). The program
-exits with a settings error for these. Configuration files (`-I`) are supported (one
-`-CODE value` per line, `#`/`//` comments; command-line options take precedence; the file is
-copied to `<prefix>.conf` when `-OC 1`).
+Configuration files (`-I`) are supported (one `-CODE value` per line, `#`/`//` comments;
+command-line options take precedence; the file is copied to `<prefix>.conf` when `-OC 1`).
+
+## Fixed trees as input
+
+All four SimPhy input forms are implemented and verified byte-exact against the reference.
+
+| Option | Input | Notes |
+|---|---|---|
+| `-S newick` | one fixed species tree, extended Newick | per-node codes `#Ne`, `/n_individuals`, `*mu_mult`, `~gtime_mult`; the tree is used for every replicate |
+| `-SR file.nex` | Nexus file with one species tree per replicate | `[&pop_size=,n_ind=,u_mult=,g_mult=]` comments after a node; `-RS` is set to the number of trees in the file |
+| `-L newick` | one fixed locus tree, extended Newick | leaf `Name_paralog`, node kind `%k` (1 duplication, 2 loss, 3 transfer, 4 transfer receptor, 5 conversion, 6 conversion receptor), `/n_individuals`, `#Ne`, `*mu_mult`, `~gtime_mult`; no species tree exists, so no `s_tree.trees` and no mappings |
+| `-LR file.nex` | Nexus file with one locus tree per locus | `[&pop_size=,kind_n=,paralog=,n_ind=,u_mult=,g_mult=]`; `-RL` is set to the number of trees in the file |
+
+Nexus files must start with a line `#NEXUS`, contain a line `BEGIN TREES;` (any case), one
+`tree name = (...);` line per tree and an `End;` line (see `tests/inputs/*.nex`). Fixed
+locus trees are parsed once per locus and the lineage-count probabilities are computed with
+the compat arithmetic, so a fixed locus tree with duplications gives the same gene trees as
+SimPhy.
+
+Where SimPhy 1.0.2 itself fails on these inputs simphy-x keeps going (there is nothing to be
+byte-identical to):
+
+* `-L`/`-LR` with `-HL` (gene-family rate heterogeneity) crashes SimPhy (it multiplies the
+  species tree's rate, and there is no species tree); simphy-x uses `-SU` as the base rate.
+* `-L`/`-LR` with `-OT 1` (branches in time units) crashes SimPhy; simphy-x writes the locus
+  and gene trees in time units from the locus tree's generation-time multipliers.
+* `-L`/`-LR` with `-OM 1`: SimPhy prints the "mapping outputs will not be generated" warning
+  but, because of a pointer/value mix-up, leaves mapping on; simphy-x prints the same warning
+  and turns mapping off.
+* `-SR`/`-LR`: SimPhy's Nexus line reader appends to an uninitialised buffer, so the tree
+  string it parses depends on heap contents (it comes out corrupted for some verbosity levels
+  and file layouts). simphy-x reads the line deterministically. It matches SimPhy whenever
+  SimPhy's read happens to be clean, which is the case on the verification matrix.
+* `-S` together with `-SR` (or `-L` with `-LR`): SimPhy frees the Newick string and then keeps
+  using it; simphy-x prints SimPhy's warning and uses the file.
 
 ## Program text (stdout)
 
@@ -54,11 +88,13 @@ text only. `tests/verify_compat.sh` checks stdout too when `SX_CHECK_STDOUT=1`.
 
 ## Portable binary
 
-`make static` builds `bin/simphy-x-static`, a fully static x86-64 Linux executable (glibc, GSL,
+`make` builds `bin/simphy-x` as a fully static x86-64 Linux executable (glibc, GSL,
 MPFR, GMP, SQLite all linked in, 3.5 MB). It runs on any x86-64 Linux without dependencies and
 gives byte-identical output on every machine, because the `exp`/`log` implementation is baked
-in (the dynamically linked `simphy-x` and SimPhy itself use the host's libm). The one
-harmless link warning concerns SQLite's `dlopen` for loadable extensions, which are not used.
+in (`simphy-x-dynamic` and SimPhy itself use the host's libm, which can differ between glibc
+versions). It needs no shared libraries at all: `ldd` reports "not a dynamic executable". The
+suppressed link warning concerns SQLite's `dlopen` for loadable extensions, which are not used.
+It is x86-64 Linux only; other platforms build from source with `make`.
 
 ## Which mode to use
 

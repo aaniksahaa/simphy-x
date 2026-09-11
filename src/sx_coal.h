@@ -33,6 +33,9 @@ typedef struct {
     double *out;    /* n_coals results */
 } sx_mpfr_chain_job;
 void sx_mpfr_chain_run(sx_mpfr_chain_job *job);
+/* 0: abort like SimPhy 1.0.2 when the 512-bit CDF leaves [0,1]; 1: retry with doubled precision. */
+extern int sx_mpfr_rescue;
+extern unsigned long sx_mpfr_rescue_count;
 double sx_mpfr_sample_coal_time_mlc(int i_lin, int o_lin, double bound_time, int pop_size, double brent_epsilon, double density, int verbosity, int precision);
 /* Diagnostics: SimPhy's conditional CDF of the next coalescence time evaluated at w (MPFR / double versions). */
 double sx_debug_mpfr_cdf(int i_lin, int o_lin, double bound_time, int pop_size, double w, int precision);

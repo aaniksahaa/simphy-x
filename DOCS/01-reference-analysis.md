@@ -219,3 +219,34 @@ fast mode samples the exact conditional distribution (validated against the same
 KS ≤ 0.016 with n = 5000–20000 for every j). At the gene-tree level the effect is small: the
 paired fast-vs-compat comparisons of extra lineages, heights and lengths pass, and the mean
 total coalescence time in the affected branches is unchanged (0.000954 vs 0.000952 Ne).
+
+## 8. "MPFR out of precision" at large lineage counts
+
+`MPFRSampleCDFCoalTimeMLCFromXtoYLineages` evaluates the conditional CDF as an alternating
+series at a fixed 512 bits and exits if the value leaves [0, 1]. The cancellation grows
+roughly exponentially with the number of lineages entering the bounded branch, so once a
+duplication near the root of a large species tree leaves several hundred copies in the
+daughter subtree, 154 decimal digits are not enough and SimPhy 1.0.2 aborts the whole run at
+that locus (observed at 2000 taxa with a modest duplication rate). It is a precision choice,
+not a property of the model: simphy-x `-XR 1` retries with doubled precision, and fast mode
+uses only positive series and never encounters it.
+
+## 9. Defects in the fixed-tree input paths (found while porting `-L`, `-SR`, `-LR`)
+
+* `NextNexusTree` (trees.c) allocates `big_buffer` with `realloc` and then `strncat`s the line
+  read from the file onto it. The buffer is never initialised, so the tree string is whatever
+  the heap held (for example a stale `(`) followed by the line; the parser then reads a
+  corrupted tree or fails the Nexus check. Which happens depends on earlier allocations, hence
+  on verbosity and on the file. simphy-x reads the line into a fresh buffer.
+* With a fixed locus tree there is no species tree, but `main.c` still evaluates
+  `sp_tree->mu * gamma_l` for `-HL` and uses the species tree to write branches in time units
+  for `-OT 1`; both are NULL dereferences and SimPhy 1.0.2 segfaults. simphy-x uses the
+  tree-wide `-SU` rate and the locus tree's own generation-time multipliers.
+* In `GetSettings` the fixed-locus-tree branch tests `map != 0` where `map` is a pointer and
+  assigns `map = 0` to the pointer, so the "mapping outputs will not be generated" warning is
+  always printed and the mapping setting is never cleared. Similarly `newick_stree = NULL`
+  after `free(*newick_stree)` clears the local pointer, leaving a dangling string when `-S`
+  and `-SR` are combined.
+* `RefineLNodes` counts a `LOSS` node and then falls through into the `GC` case, so every
+  loss in a fixed locus tree is also counted as a gene conversion in `stats.txt` and the
+  database. simphy-x reproduces this because it is part of the output.

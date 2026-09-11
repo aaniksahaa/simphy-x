@@ -532,8 +532,12 @@ static double mpfr_original_prob_coal(int i_lin, int o_lin, double bound_time, i
     return sum_ret;
 }
 
+int sx_mpfr_rescue = 0;
+unsigned long sx_mpfr_rescue_count = 0;
+
 typedef struct {
     int i_lin, o_lin, pop_size, precision;
+    int out_of_precision;
     double bound_time, density;
     mpfr_ptr lambda_i, lambda_o, initC, out_sum;
     /* temporaries (allocated once per chain) */
@@ -582,13 +586,15 @@ static double sample_cdf_mpfr(double w_time, void *vctx)
         }
         mpfr_mul(cx->sum, cx->sum, cx->out_sum, MPFR_RNDN);
         cprob = mpfr_get_d(cx->sum, MPFR_RNDN);
-        if (cprob > 1 || cprob < 0)
-            sx_check(SX_UNEXPECTED_VALUE, "MPFR out of precision!!!! That options must be completely out of sense\n");
+        if (cprob > 1 || cprob < 0) {
+            if (!sx_mpfr_rescue) sx_check(SX_UNEXPECTED_VALUE, "MPFR out of precision!!!! That options must be completely out of sense\n");
+            cx->out_of_precision = 1;
+        }
         return cprob - density;
     }
 }
 
-double sx_mpfr_sample_coal_time_mlc(int i_lin, int o_lin, double bound_time, int pop_size, double brent_epsilon, double density, int verbosity, int precision)
+static double mpfr_sample_once(int i_lin, int o_lin, double bound_time, int pop_size, double brent_epsilon, double density, int verbosity, int precision, int *out_of_precision)
 {
     mpfr_t lambda_i, lambda_o, C0, Cx, out_sum, fact;
     int i = 0;
@@ -611,14 +617,31 @@ double sx_mpfr_sample_coal_time_mlc(int i_lin, int o_lin, double bound_time, int
     mpfr_mul_si(out_sum, out_sum, -1, MPFR_RNDN);
 
     mpfr_ctx cx;
-    cx.i_lin = i_lin; cx.o_lin = o_lin; cx.pop_size = pop_size; cx.precision = precision;
+    cx.i_lin = i_lin; cx.o_lin = o_lin; cx.pop_size = pop_size; cx.precision = precision; cx.out_of_precision = 0;
     cx.bound_time = bound_time; cx.density = density;
     cx.lambda_i = lambda_i; cx.lambda_o = lambda_o; cx.initC = C0; cx.out_sum = out_sum;
     mpfr_inits2(precision, cx.lambda_k, cx.sum, cx.dif_lambdas, cx.t2, cx.Cx, cx.nsum, cx.C, (mpfr_ptr)0);
-    sx_check(brent_root(sample_cdf_mpfr, &cx, 0.0, bound_time, (float)brent_epsilon, &result, verbosity), "Error rooting the MPFRCDFCoalTimeFromXtoYLineages\n");
+    long rc = brent_root(sample_cdf_mpfr, &cx, 0.0, bound_time, (float)brent_epsilon, &result, verbosity);
+    if (!cx.out_of_precision) sx_check(rc, "Error rooting the MPFRCDFCoalTimeFromXtoYLineages\n");
+    *out_of_precision = cx.out_of_precision;
     mpfr_clears(cx.lambda_k, cx.sum, cx.dif_lambdas, cx.t2, cx.Cx, cx.nsum, cx.C, (mpfr_ptr)0);
     mpfr_clears(Cx, fact, lambda_i, lambda_o, C0, out_sum, (mpfr_ptr)0);
     return result;
+}
+
+double sx_mpfr_sample_coal_time_mlc(int i_lin, int o_lin, double bound_time, int pop_size, double brent_epsilon, double density, int verbosity, int precision)
+{
+    int oop = 0;
+    double r = mpfr_sample_once(i_lin, o_lin, bound_time, pop_size, brent_epsilon, density, verbosity, precision, &oop);
+    if (!oop) return r;
+    /* rescue: SimPhy 1.0.2 would have aborted here; retry with more precision */
+    for (int prec = precision * 2; prec <= 65536; prec *= 2) {
+        __sync_fetch_and_add(&sx_mpfr_rescue_count, 1UL);
+        r = mpfr_sample_once(i_lin, o_lin, bound_time, pop_size, brent_epsilon, density, verbosity, prec, &oop);
+        if (!oop) return r;
+    }
+    sx_check(SX_UNEXPECTED_VALUE, "MPFR out of precision even at 65536 bits\n");
+    return r;
 }
 
 void sx_mpfr_chain_run(sx_mpfr_chain_job *job)

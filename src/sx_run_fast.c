@@ -30,7 +30,9 @@ enum { TAG_REP = 1, TAG_LOCUS = 2 };
 typedef struct fast_rep {
     int rep;
     sx_settings *snap;          /* replicate-level sampled values */
-    sx_stree *sp_tree;          /* read-only for workers */
+    sx_stree *sp_tree;          /* read-only for workers (NULL with a fixed locus tree) */
+    char **ltree_strs;          /* -LR: one Nexus tree string per locus */
+    int fixed_locus;
     sx_names *names;            /* fixed species tree names or NULL */
     int nl_trees, n_ldigits, n_gdigits;
     char dir[32];
@@ -108,7 +110,7 @@ static void fast_worker(void *vp)
     tl_init();
     gsl_rng *r = tl_rng;
     sx_rng_fast_reseed(r, sx_stream_seed((uint64_t)s->u_seed, (uint64_t)R->rep, (uint64_t)j->locus, TAG_LOCUS));
-    sx_stree *sp = sx_stree_clone(R->sp_tree);
+    sx_stree *sp = R->sp_tree ? sx_stree_clone(R->sp_tree) : NULL;
     int verbosity = 0;
     char fname[128];
     sx_buf buf; sx_buf_init(&buf);
@@ -127,11 +129,21 @@ static void fast_worker(void *vp)
     if (verbosity > 2) sx_print_settings_lloop(s, j->locus, gamma_l);
     int simulated_locus = (sx_get(s->lb_rate) != 0 || sx_get(s->ld_rate) != 0 || sx_get(s->lt_rate) != 0 || sx_get(s->lgc_rate) != 0);
     int min_lleaves = s->min_lleaves;
-    if (sp->n_leaves < min_lleaves) min_lleaves = sp->n_leaves;
+    if (sp && sp->n_leaves < min_lleaves) min_lleaves = sp->n_leaves;
     int collapse = (s->map > 0 || s->out_labels == 1) ? 1 : 0;
 
     sx_ltree *lt = NULL;
-    if (simulated_locus) {
+    sx_names *own_names = NULL;
+    if (R->fixed_locus) {
+        if (verbosity > 2) sx_out("\tObtaining the preset locus tree (there is no birth-death process)... ");
+        int nd = 0, nl = 0, nt = 0, ngc = 0;
+        double gt = sx_get(s->gen_time) != 1 ? sx_get(s->gen_time) : 1;
+        if (R->ltree_strs) lt = sx_parse_nexus_ltree(R->ltree_strs[j->locus - 1], &own_names, verbosity, gt, (int)sx_get(s->Ne), sx_get(s->mu), (int)sx_get(s->ind_per_sp), &nd, &nl, &nt, &ngc);
+        else lt = sx_parse_newick_ltree(s->locus_tree_str, &own_names, verbosity, gt, (int)sx_get(s->Ne), sx_get(s->mu), (int)sx_get(s->ind_per_sp), &nd, &nl, &nt, &ngc);
+        names = own_names;
+        st.dups = nd; st.losses = nl; st.transfr = nt; st.gc = ngc;
+        if (s->stats == 1) { st.leaves = lt->n_leaves; st.gleaves = lt->n_gleaves; }
+    } else if (simulated_locus) {
         if (verbosity > 2) sx_out("\tSimulating locus tree %d ... ", j->locus);
         sx_check(sx_sim_bdlh_tree(sp, &lt, tl_node_ptrs, sx_get(s->lb_rate), sx_get(s->ld_rate), sx_get(s->lt_rate), sx_get(s->lgc_rate), s->t_kind, r, min_lleaves, s->min_lsleaves, verbosity, &st, getenv("SIMPHY_X_FAST_COMPATPROBS") != NULL), ": simulating a locus tree");
         sx_stree_reindex(sp, 1);
@@ -158,7 +170,7 @@ static void fast_worker(void *vp)
     }
     if (sx_get(s->alpha_l) != 0) {
         if (verbosity > 2) sx_out("\n\tGenerating gene family (locus tree) specific substitution rate heterogeneity...");
-        lt->mu = sp->mu * gamma_l;
+        lt->mu = (sp ? sp->mu : sx_get(s->mu)) * gamma_l;
         if (verbosity > 2) sx_out(" Done\n");
     }
     j->st = st; j->gamma_l = gamma_l; j->n_gleaves = lt->n_gleaves;
@@ -212,7 +224,7 @@ static void fast_worker(void *vp)
     snprintf(fname, sizeof fname, "%s/g_trees%.*d.trees", R->dir, R->n_ldigits, j->locus);
     sx_check(sx_buf_write_file(&gbuf, fname), "Error opening g_tree file: ");
     sx_buf_free(&gbuf); sx_buf_free(&buf);
-    sx_gtree_free(gt); sx_ltree_free(lt); sx_stree_free(sp); sx_settings_snapshot_free(s);
+    sx_gtree_free(gt); sx_ltree_free(lt); if (sp) sx_stree_free(sp); if (own_names) sx_names_free(own_names); sx_settings_snapshot_free(s);
     sx_out_capture(NULL);
     pthread_mutex_lock(&stat_mu);
     g_bridge += tl_ws->n_bridge; g_bridge_fb += tl_ws->n_bridge_fallback; g_pieces += tl_ws->n_forward_tavare; g_mpfr += tl_ws->n_mpfr;
@@ -245,7 +257,8 @@ static void rep_release(fast_rep *R)
     if (R->d_outfile) fclose(R->d_outfile);
     if (R->stat_outfile) fclose(R->stat_outfile);
     sx_buf_free(&R->log);
-    sx_stree_free(R->sp_tree);
+    if (R->ltree_strs) { for (int i = 0; i < R->nl_trees; ++i) free(R->ltree_strs[i]); free(R->ltree_strs); }
+    if (R->sp_tree) sx_stree_free(R->sp_tree);
     if (R->names) sx_names_free(R->names);
     sx_settings_snapshot_free(R->snap);
     free(R);
@@ -348,6 +361,7 @@ long sx_run_fast(sx_settings *s)
     sx_buf buf; sx_buf_init(&buf);
     int min_lleaves = s->min_lleaves;
 
+    if (s->n_istrees > 0) sx_check(sx_nexus_init(s->stree_ifile), ": parsing Nexus file");
     for (int curr_stree = 1; curr_stree <= s->ns_trees; ++curr_stree) {
         sx_rng_fast_reseed(r, sx_stream_seed((uint64_t)s->u_seed, (uint64_t)curr_stree, 0, TAG_REP));
         sx_check(sx_sample_distr(r, 17, sloop), ": sampling distributions");
@@ -356,8 +370,14 @@ long sx_run_fast(sx_settings *s)
         R->rep = curr_stree;
         sx_buf_init(&R->log);
         sx_out_capture(&R->log);
+        if (s->n_istrees > 0) sx_check(sx_nexus_next(s->stree_ifile, &s->species_tree_str), " : getting next Nexus tree");
+        else if (s->n_iltrees > 0) sx_check(sx_nexus_init(s->ltree_ifile), ": Parsing Nexus tree");
         if (verbosity > 2) sx_print_settings_sloop(s, curr_stree);
         R->nl_trees = (int)sx_get(s->nl_trees);
+        if (s->n_iltrees > 0) {
+            R->ltree_strs = sx_calloc((size_t)R->nl_trees, sizeof(char *));
+            for (int l = 0; l < R->nl_trees; ++l) sx_check(sx_nexus_next(s->ltree_ifile, &R->ltree_strs[l]), ": parsing the next Nexus tree");
+        }
         R->n_ldigits = (int)sx_count_intdigits((long)R->nl_trees, 0);
         R->n_gdigits = (int)sx_count_intdigits((long)s->ng_trees, 0);
         double gen_time = sx_get(s->gen_time) != 1 ? sx_get(s->gen_time) : 1;
@@ -366,8 +386,12 @@ long sx_run_fast(sx_settings *s)
 
         sx_stree *sp_tree = NULL;
         sx_names *names = NULL;
-        if (s->species_tree_str != NULL) {
-            sp_tree = sx_parse_newick_stree(s->species_tree_str, &names, verbosity, gen_time, (int)sx_get(s->Ne), sx_get(s->mu), (int)sx_get(s->ind_per_sp));
+        R->fixed_locus = (s->locus_tree_str != NULL || s->n_iltrees > 0);
+        if (R->fixed_locus) {
+            /* no species tree */
+        } else if (s->n_istrees > 0 || s->species_tree_str != NULL) {
+            sp_tree = s->n_istrees > 0 ? sx_parse_nexus_stree(s->species_tree_str, &names, verbosity, gen_time, (int)sx_get(s->Ne), sx_get(s->mu), (int)sx_get(s->ind_per_sp))
+                                       : sx_parse_newick_stree(s->species_tree_str, &names, verbosity, gen_time, (int)sx_get(s->Ne), sx_get(s->mu), (int)sx_get(s->ind_per_sp));
             if (sp_tree->n_leaves < min_lleaves)
                 sx_check(SX_SETTINGS_ERROR, "\n\t\tERROR:The minimum number of locus tree leaves is bigger than the number of leaves of the fixed species tree. Please, check the -Ll parameter and the input species tree.\n");
             sx_stree_collapse(sp_tree, 0);
@@ -381,12 +405,14 @@ long sx_run_fast(sx_settings *s)
                 min_lleaves = sp_tree->n_leaves;
             }
         }
-        if (sx_get(s->alpha_s) != 0) {
-            if (verbosity > 2) sx_out("\tGenerating lineage specific substitution rate heterogeneity...");
-            sx_stree_rateheter(sp_tree, sx_get(s->alpha_s), r);
-            if (verbosity > 2) sx_out(" Done\n");
+        if (!R->fixed_locus) {
+            if (sx_get(s->alpha_s) != 0) {
+                if (verbosity > 2) sx_out("\tGenerating lineage specific substitution rate heterogeneity...");
+                sx_stree_rateheter(sp_tree, sx_get(s->alpha_s), r);
+                if (verbosity > 2) sx_out(" Done\n");
+            }
+            if (verbosity > 2) sx_out("Done\n");
         }
-        if (verbosity > 2) sx_out("Done\n");
         switch (verbosity) {
         case 1: sx_out("Replicate %u of %u: Simulating %u gene trees from %d locus trees... ", curr_stree, s->ns_trees, (unsigned)(R->nl_trees * s->ng_trees), R->nl_trees); break;
         case 2: sx_out("\nReplicate %u of %u: Simulating %u gene trees from %d locus trees...\n", curr_stree, s->ns_trees, (unsigned)(R->nl_trees * s->ng_trees), R->nl_trees); break;
@@ -394,15 +420,19 @@ long sx_run_fast(sx_settings *s)
         }
         sx_out_capture(NULL);
 
-        sprintf(fname, "%s/s_tree.trees", R->dir);
-        sx_buf_clear(&buf); sx_write_stree(&buf, sp_tree, names, s->out_time, s->out_labels);
-        sx_check(sx_buf_write_file(&buf, fname), "Error opening s_trees.tree file..");
-        if (s->db > 0) {
+        if (!R->fixed_locus) {
+            sprintf(fname, "%s/s_tree.trees", R->dir);
+            sx_buf_clear(&buf); sx_write_stree(&buf, sp_tree, names, s->out_time, s->out_labels);
+            sx_check(sx_buf_write_file(&buf, fname), "Error opening s_trees.tree file..");
+        }
+        if (s->db > 0 && R->fixed_locus) {
+            sx_check(sx_db_write_stree(&ctx.database, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), ": writting the species tree table");
+        } else if (s->db > 0) {
             long double st_height = sx_stree_cu_height(sp_tree, sp_tree->root, sp_tree->Ne);
             long double st_length = sx_stree_cu_length(sp_tree, sp_tree->root, sp_tree->Ne);
             sx_check(sx_db_write_stree(&ctx.database, sp_tree->n_leaves, sx_get(s->sb_rate), sx_get(s->sd_rate), (int)sx_get(s->bds_leaves), sx_get(s->bds_length), (double)st_height, (double)st_length, sp_tree->gen_length[SX_CHILD(sp_tree, sp_tree->root, 0)], (int)sx_get(s->ind_per_sp), (int)sx_get(s->nl_trees), sx_get(s->b_rate), sx_get(s->d_rate), sx_get(s->t_rate), sx_get(s->gc_rate), sx_get(s->alpha_s), sx_get(s->alpha_l), sx_get(s->salpha_g), (int)sx_get(s->Ne), sx_get(s->mu), sx_get(s->gen_time)), ": writting the species tree table");
         }
-        if (locus_simulated) sx_stree_reindex(sp_tree, 1);
+        if (locus_simulated && sp_tree) sx_stree_reindex(sp_tree, 1);
         R->sp_tree = sp_tree; R->names = names;
         R->snap = sx_settings_snapshot(s);
         R->snap->min_lleaves = min_lleaves;

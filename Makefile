@@ -10,16 +10,23 @@ LIBS := $(STATIC_LIBS) -lm -ldl -lpthread
 SRC := $(wildcard src/*.c)
 OBJ := $(patsubst src/%.c,build/%.o,$(SRC))
 BIN := bin/simphy-x
+DYNBIN := bin/simphy-x-dynamic
 
+# default: bin/simphy-x is the fully static x86-64 Linux binary (glibc/libm, GSL, MPFR, GMP, SQLite
+# baked in): runs on any x86-64 Linux without installing anything and gives identical output on
+# every machine.  `make dynamic` builds bin/simphy-x-dynamic against the host's glibc instead.
 all: $(BIN)
 
-# fully static, portable x86-64 Linux binary (libc/libm baked in: identical output on any machine)
-static: $(OBJ)
-	@mkdir -p bin
-	$(CC) $(CFLAGS) $(LDFLAGS) -static $^ -o bin/simphy-x-static -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lgsl -lgslcblas -lsqlite3 -lmpfr -lgmp -lm -ldl
-	@echo "built bin/simphy-x-static"
-
 $(BIN): $(OBJ)
+	@mkdir -p bin
+	$(CC) $(CFLAGS) $(LDFLAGS) -static $^ -o $@ -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lgsl -lgslcblas -lsqlite3 -lmpfr -lgmp -lm -ldl 2>&1 | grep -v "dlopen' in statically linked\|unixDlOpen" || true
+	@test -x $@ && echo "built $@ (static, portable)"
+
+static: $(BIN)
+
+dynamic: $(DYNBIN)
+
+$(DYNBIN): $(OBJ)
 	@mkdir -p bin
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
@@ -63,4 +70,4 @@ PREFIX ?= /usr/local
 clean:
 	rm -rf build bin
 
-.PHONY: all clean tests check install static
+.PHONY: all clean tests check install static dynamic

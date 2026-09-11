@@ -1,6 +1,7 @@
 #include "sx_cli.h"
 #include <ctype.h>
 #include <time.h>
+#include "sx_newick.h"
 
 sx_settings *sx_settings_new(void)
 {
@@ -38,7 +39,7 @@ void sx_settings_free(sx_settings *s)
 
 void sx_print_usage(void)
 {
-    printf("\nUsage: simphy-x -[Parameter code] value(i|r|c|b|*) ...\n\nValue kinds\n\ti=integer\n\tr=real\n\tc=character string\n\tb=boolean(1 or 0)\n\t*=sampling notation\n\nPARAMETERS\n__________\n__________\n\n-R...→ Replicates\n_________________\n\n\t-RS i: Number of species tree replicates (study replicates).\n\t-RL *: Number of locus trees per species tree.\n\t-RG i: Number of gene trees per locus tree (Not for general usage).\n\n-G... → Genome-wide parameters (sampled for each species tree)\n______________________________________________________________\n\n\t-GB *: Duplication parameter (to use with LB)\n\t-GD *: Loss rate parameter (to use with LD).\n\t-GT *: Transfer parameter (to use with LT).\n\t-GG *: Gene conversion parameter (to use with LG).\n\t-GP *: Gene-by-lineage-specific parameter (to use with HG).\n\n-S... → Species tree\n____________________\n\n\t-S c: Fixed species tree (extended Newick format).\n\t-SR c: Nexus file with species trees.\n\t-SB *: Speciation rate (events/time unit).\n\t-SD *: Extinction rate (events/time unit).\n\t-ST *: Species tree height (time units).\n\t-SL *: Number of taxa.\n\t-SO *: Ratio between ingroup height and the branch from the root to the ingroup. If this parameter is not set the outgroup is not simulated.\n\t-SI *: Number of individuals per species.\n\t-SP *: Tree-wide effective population size.\n\t-SU *: Tree-wide substitution rate.\n\t-SG *: Tree-wide generation time.\n\n-L... → Locus tree\n__________________\n\n\t-L c: Locus tree (extended Newick format).\n\t-LR c: Nexus file containing locus trees.\n\t-LB *: Duplication rate (events/generation).\n\t-LD *: Loss rate (events/generation).\n\t-LT *: Horizontal gene transfer (HGT) rate (events/generation). \n\t-LG *: Gene conversion (GC) rate (events/generation).\n\t-LK b: Distance-dependent HGT/GC: Determines whether the sampling of receptors of genetic material depends (1) or not (0) on the evolutionary distance between candidates and donors.\n\t-LL i: Minimum number of locus tree leaves.\n\t-LS i: Minimum number of species represented by the locus tree leaves.\n\n-H...→ Substitution rate heterogeneity parameters\n_________________________________________________\n\n\t-HS *: Species-specific branch rate heterogeneity modifiers.\n\t-HL *: Gene-family-specific rate heterogeneity modifiers.\n\t-HH *:Gene-by-lineage-specific locus tree parameter (to use with the HG argument below).\n\t-HG *: Gene-by-lineage-specific rate heterogeneity modifiers.\n\n-C... → Global options\n______________________\n\n\t-CS i: Random number generator seed.\n\t-CE r: Precision of the Brent’s method for root-finding when sampling the multilocus coalescent. (Not for general usage)\n\n-I c: Input configuration file\n\n-V [0,6]: Verbosity. (Note: the bigger the verbosity the slower SimPhy becomes. Levels over 3 may only make sense for debugging or study the way SimPhy works).\n\n-O...→ Output\n_____________\n\n\t-O c: Common output prefix-name (for folder and names).\n\t-OT b: Determines whether the species and locus tree branches are written in number of generations (0) or time units (1).\n\t-OM b: Activates the tree mapping output.\n\t-OD b: Activates the SQLite database output.\n\t-OP b: Activates the logging of sampled options.\n\t-OC b: Activates the logging of original command line parameters and input configuration files.\n\t-OL b: Activates the output of trees with internal nodes labelled by its post-order id starting from 0.\n\t-ON b: Activates the output of the bounded locus subtrees file.\n\n-X...→ simphy-x options\n_______________________\n\n\t-XM c: Mode: compat (default; byte-identical to SimPhy 1.0.2) or fast (same model, independent per-locus random streams, no arbitrary precision).\n\t-XT i: Number of threads (default: all available cores).\n\t-XV: Print the version and exit.\n\n\nSampling notation\n_________________\n\nNotation squeme= Distribution_code:parameter_1,parameter_2,...,parameter_n\nDistribution codes:\n\tF: fixed value\n\tU: Uniform\n\tN: Normal\n\tE: Exponential\n\tG: Gamma\n\tLN: Lognormal\n\tLU: LogUniform\n\tSL: Lognormal * constant\nExample: N:1,1 (Normal with mean and sd equal 1)\n\nExample\n_______\n\nsimphy-x -sb f:0.000001 -ld f:0.0000005 -lb f:0.0000005 -lt f:0.0000005 -rs 100 -rl U:10,100 -rg 1 -o SimPhy_test -sp f:10000 -su f:0.00001 -sg f:1 -sl U:20,50 -st f:1000000 -om 1 -v 2 -od 1 -op 1 -oc 1 -on 1 -cs 22\n\n");
+    printf("\nUsage: simphy-x -[Parameter code] value(i|r|c|b|*) ...\n\nValue kinds\n\ti=integer\n\tr=real\n\tc=character string\n\tb=boolean(1 or 0)\n\t*=sampling notation\n\nPARAMETERS\n__________\n__________\n\n-R...→ Replicates\n_________________\n\n\t-RS i: Number of species tree replicates (study replicates).\n\t-RL *: Number of locus trees per species tree.\n\t-RG i: Number of gene trees per locus tree (Not for general usage).\n\n-G... → Genome-wide parameters (sampled for each species tree)\n______________________________________________________________\n\n\t-GB *: Duplication parameter (to use with LB)\n\t-GD *: Loss rate parameter (to use with LD).\n\t-GT *: Transfer parameter (to use with LT).\n\t-GG *: Gene conversion parameter (to use with LG).\n\t-GP *: Gene-by-lineage-specific parameter (to use with HG).\n\n-S... → Species tree\n____________________\n\n\t-S c: Fixed species tree (extended Newick format).\n\t-SR c: Nexus file with species trees.\n\t-SB *: Speciation rate (events/time unit).\n\t-SD *: Extinction rate (events/time unit).\n\t-ST *: Species tree height (time units).\n\t-SL *: Number of taxa.\n\t-SO *: Ratio between ingroup height and the branch from the root to the ingroup. If this parameter is not set the outgroup is not simulated.\n\t-SI *: Number of individuals per species.\n\t-SP *: Tree-wide effective population size.\n\t-SU *: Tree-wide substitution rate.\n\t-SG *: Tree-wide generation time.\n\n-L... → Locus tree\n__________________\n\n\t-L c: Locus tree (extended Newick format).\n\t-LR c: Nexus file containing locus trees.\n\t-LB *: Duplication rate (events/generation).\n\t-LD *: Loss rate (events/generation).\n\t-LT *: Horizontal gene transfer (HGT) rate (events/generation). \n\t-LG *: Gene conversion (GC) rate (events/generation).\n\t-LK b: Distance-dependent HGT/GC: Determines whether the sampling of receptors of genetic material depends (1) or not (0) on the evolutionary distance between candidates and donors.\n\t-LL i: Minimum number of locus tree leaves.\n\t-LS i: Minimum number of species represented by the locus tree leaves.\n\n-H...→ Substitution rate heterogeneity parameters\n_________________________________________________\n\n\t-HS *: Species-specific branch rate heterogeneity modifiers.\n\t-HL *: Gene-family-specific rate heterogeneity modifiers.\n\t-HH *:Gene-by-lineage-specific locus tree parameter (to use with the HG argument below).\n\t-HG *: Gene-by-lineage-specific rate heterogeneity modifiers.\n\n-C... → Global options\n______________________\n\n\t-CS i: Random number generator seed.\n\t-CE r: Precision of the Brent’s method for root-finding when sampling the multilocus coalescent. (Not for general usage)\n\n-I c: Input configuration file\n\n-V [0,6]: Verbosity. (Note: the bigger the verbosity the slower SimPhy becomes. Levels over 3 may only make sense for debugging or study the way SimPhy works).\n\n-O...→ Output\n_____________\n\n\t-O c: Common output prefix-name (for folder and names).\n\t-OT b: Determines whether the species and locus tree branches are written in number of generations (0) or time units (1).\n\t-OM b: Activates the tree mapping output.\n\t-OD b: Activates the SQLite database output.\n\t-OP b: Activates the logging of sampled options.\n\t-OC b: Activates the logging of original command line parameters and input configuration files.\n\t-OL b: Activates the output of trees with internal nodes labelled by its post-order id starting from 0.\n\t-ON b: Activates the output of the bounded locus subtrees file.\n\n-X...→ simphy-x options\n_______________________\n\n\t-XM c: Mode: compat (default; byte-identical to SimPhy 1.0.2) or fast (same model, independent per-locus random streams, no arbitrary precision).\n\t-XT i: Number of threads (default: all available cores).\n\t-XR b: compat mode: where SimPhy 1.0.2 aborts with \"MPFR out of precision\" (bounded subtrees with hundreds of lineages), continue with adaptive precision instead (output identical up to that point).\n\t-XV: Print the version and exit.\n\n\nSampling notation\n_________________\n\nNotation squeme= Distribution_code:parameter_1,parameter_2,...,parameter_n\nDistribution codes:\n\tF: fixed value\n\tU: Uniform\n\tN: Normal\n\tE: Exponential\n\tG: Gamma\n\tLN: Lognormal\n\tLU: LogUniform\n\tSL: Lognormal * constant\nExample: N:1,1 (Normal with mean and sd equal 1)\n\nExample\n_______\n\nsimphy-x -sb f:0.000001 -ld f:0.0000005 -lb f:0.0000005 -lt f:0.0000005 -rs 100 -rl U:10,100 -rg 1 -o SimPhy_test -sp f:10000 -su f:0.00001 -sg f:1 -sl U:20,50 -st f:1000000 -om 1 -v 2 -od 1 -op 1 -oc 1 -on 1 -cs 22\n\n");
     fflush(stdout);
 }
 
@@ -98,8 +99,11 @@ static long apply_option(sx_settings *s, const char *arg, const char *val, char 
         switch (toupper((unsigned char)sub_code)) {
         case '\0': free(s->species_tree_str); s->species_tree_str = sx_calloc(strlen(val) + 1, 1); sscanf(val, "%s", s->species_tree_str); break;
         case 'R':
-            print_xstring_error(argv, i, "|<- Nexus species tree files (-SR) are not supported yet by simphy-x\n");
-            return SX_SETTINGS_ERROR;
+            free(s->stree_iname); s->stree_iname = sx_calloc(strlen(val) + 1, 1); sscanf(val, "%s", s->stree_iname);
+            if (s->stree_ifile) fclose(s->stree_ifile);
+            if ((s->stree_ifile = fopen(s->stree_iname, "r")) == NULL) { print_xstring_error(argv, i, "|<- ERROR in this parameter\n"); perror("Error opening input_file: "); sx_check(SX_IO_ERROR, NULL); }
+            sx_check(sx_nexus_count(s->stree_ifile, &s->n_istrees), NULL);
+            break;
         case 'B': PARSE_SU(s->sb_rate); break;
         case 'D': PARSE_SU(s->sd_rate); break;
         case 'T': PARSE_SU(s->bds_length); break;
@@ -116,8 +120,11 @@ static long apply_option(sx_settings *s, const char *arg, const char *val, char 
         switch (toupper((unsigned char)sub_code)) {
         case '\0': free(s->locus_tree_str); s->locus_tree_str = sx_calloc(strlen(val) + 1, 1); sscanf(val, "%s", s->locus_tree_str); break;
         case 'R':
-            print_xstring_error(argv, i, "|<- Nexus locus tree files (-LR) are not supported yet by simphy-x\n");
-            return SX_SETTINGS_ERROR;
+            free(s->ltree_iname); s->ltree_iname = sx_calloc(strlen(val) + 1, 1); sscanf(val, "%s", s->ltree_iname);
+            if (s->ltree_ifile) fclose(s->ltree_ifile);
+            if ((s->ltree_ifile = fopen(s->ltree_iname, "r")) == NULL) { print_xstring_error(argv, i, "|<- ERROR in this parameter\n"); perror("Error opening input_file: "); sx_check(SX_IO_ERROR, NULL); }
+            sx_check(sx_nexus_count(s->ltree_ifile, &s->n_iltrees), NULL);
+            break;
         case 'B': PARSE_SU(s->lb_rate); break;
         case 'D': PARSE_SU(s->ld_rate); break;
         case 'T': PARSE_SU(s->lt_rate); break;
@@ -153,6 +160,7 @@ static long apply_option(sx_settings *s, const char *arg, const char *val, char 
             else ARG_ERR();
             break;
         case 'T': PARSE_UINT(s->threads); break;
+        case 'R': PARSE_UINT(s->rescue); break;
         default: ARG_UNK();
         }
         break;
@@ -247,6 +255,14 @@ long sx_get_settings(sx_settings *s, int argc, char **argv)
         fprintf(stderr, "\n\tERROR!!! Using -S and -L (fixed species tree and locus tree) at the same time is not allowed. Please, use only a fixed locus tree (-L) or species tree (-S). In the second option, the species tree will be converted directly into a locus tree without duplication and losses. The first option allow you to add duplications (losses does not affect to the gene tree simulation.\n");
         return SX_SETTINGS_ERROR;
     }
+    if (s->species_tree_str != NULL && s->n_istrees > 0) {
+        fprintf(stderr, "\n\tWARNING!!! Using a directly given fixed tree and a species tree input file is not allowed. Only the file will be used \n");
+        free(s->species_tree_str); s->species_tree_str = NULL;
+    }
+    if (s->locus_tree_str != NULL && s->n_iltrees > 0) {
+        fprintf(stderr, "\n\tWARNING!!! Using a directly given fixed tree and a locus tree input file is not allowed. Only the file will be used \n");
+        free(s->locus_tree_str); s->locus_tree_str = NULL;
+    }
     if ((s->species_tree_str == NULL && s->n_istrees == 0) && (s->locus_tree_str == NULL && s->n_iltrees == 0)) {
         if ((sx_is_sampling_set(s->bds_length) || sx_is_sampling_set(s->bds_leaves)) == 0) {
             fprintf(stderr, "\n\tERROR!!! You are not using neither a fixed locus tree (-L) nor a correctly specified species tree (fixed or simulated). To correctly specify a simulated species tree, you need at least one stopping rule, either bds_length or bds_leaves (-St, -Sl)\n");
@@ -270,6 +286,8 @@ long sx_get_settings(sx_settings *s, int argc, char **argv)
                 fprintf(stderr, "\n\tWARNING!!! Using the lineage specific substitution rate heterogeneity alpha with a fixed locus tree has no sense, and it will be ignored\n");
                 sx_parse_sampling("f0", &s->alpha_s, s->table);
             }
+            fprintf(stderr, "\n\tWARNING!!! Mapping outputs will not be generated as there is no species tree when a fixed locus tree is provided\n");
+            s->map = 0;
             fprintf(stderr, "\n\tWARNING!!! Using a fixed user–specified locus tree is an advanced option, and it should not be used by general users. Some locus–tree–specific parameters may not be checked and could induce biologically senseless simulation scenarios. Examples: Different generation time for paralogs in the same species tree branch.\n");
         }
     } else if (s->species_tree_str == NULL && s->n_istrees == 0) {
@@ -279,6 +297,14 @@ long sx_get_settings(sx_settings *s, int argc, char **argv)
     if (sx_is_sampling_set(s->gc_rate) && sx_is_sampling_set(s->b_rate) == 0) {
         fprintf(stderr, "\n\tWARNING!!! Using locus tree gene conversion simulation with no paralogs (without births) has no sense, and this parameter will be ignored\n");
         sx_parse_sampling("f0", &s->gc_rate, s->table);
+    }
+    if (s->n_istrees > 0 && s->ns_trees > 1) {
+        fprintf(stderr, "\n\tWARNING!!! Setting both a number of species trees and a species tree input file is not allowed, and therefore the number of replicates will be set equal to the number of species trees present in the file\n");
+        s->ns_trees = s->n_istrees;
+    }
+    if (s->n_iltrees > 0 && s->nl_trees.value.i > 0) {
+        fprintf(stderr, "\n\tWARNING!!! Setting both a number of locus trees and a locus tree input file is not allowed, and therefore the number of replicates will be set equal to the number of locus trees present in the file\n");
+        s->nl_trees.distribution_code = 0; s->nl_trees.params[0].i = s->n_iltrees; s->nl_trees.params_type[0] = SX_UI; s->nl_trees.value.i = s->n_iltrees; s->nl_trees.vtype = SX_UI;
     }
     fflush(stdout); fflush(stderr);
     return SX_NO_ERROR;

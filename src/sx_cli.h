@@ -19,6 +19,7 @@ typedef struct sx_settings {
     /* simphy-x */
     int mode;      /* SX_MODE_COMPAT / SX_MODE_FAST */
     int threads;   /* 0 = auto */
+    int rescue;    /* compat: continue with adaptive precision where SimPhy aborts */
     int argc; char **argv;
 } sx_settings;
 
