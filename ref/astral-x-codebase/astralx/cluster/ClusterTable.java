@@ -1,0 +1,320 @@
+package astralx.cluster;
+
+import astralx.Config;
+import astralx.Logging;
+import astralx.hash.PrefixHashArrays;
+import astralx.util.ProgressBar;
+import astralx.tree.Tree;
+import astralx.tree.TreeNode;
+
+import java.util.*;
+
+/**
+ * The cluster set X: all unique clusters extracted from gene trees.
+ *
+ * For each gene tree (treated as unrooted), we walk every internal node u
+ * (excluding root) and register two clusters:
+ *   1. sub(u)      -- the subtree range [u.left, u.right)
+ *   2. Lg \ sub(u) -- complement w.r.t. that tree's taxa (if size > 0)
+ *
+ * Also registers the all-taxa cluster (DP root) separately.
+ * Singleton clusters (size 1) are included -- they are DP base cases.
+ * Empty clusters (size 0) are excluded.
+ *
+ * Deduplication is done by ClusterHash. One exemplar Cluster is kept per unique hash.
+ * The table also maintains size-binned lists for DP space construction.
+ */
+public class ClusterTable {
+
+    /** Entry in the cluster hash table. */
+    public static final class Entry {
+        public final ClusterHash hash;
+        public final Cluster     exemplar;  // any one cluster with this taxa set
+        public int               frequency; // how many times this exact taxa set appeared
+
+        Entry(ClusterHash h, Cluster c) { this.hash = h; this.exemplar = c; this.frequency = 1; }
+    }
+
+    // Main table: ClusterHash -> Entry
+    private final Map<ClusterHash, Entry> table = new HashMap<>();
+
+    // Size bins: size -> list of ClusterHash objects of that size
+    private final Map<Integer, List<ClusterHash>> sizeBins = new HashMap<>();
+
+    // Special: the all-taxa cluster hash (DP root)
+    private ClusterHash allTaxaHash;
+
+    // The {anchor} singleton hash, for the anchored-outgroup root split
+    // (see DOCS/anchored-outgroup-search-space-design.md). null if the anchor
+    // taxon appears in no input tree (cannot happen for a real taxon).
+    private ClusterHash anchorHash;
+
+    private final int m; // number of hash seeds
+
+    // Anchored-outgroup mode (DOCS/anchored-outgroup-search-space-design.md): when
+    // true, register only the ANCHOR-FREE orientation of every bipartition (the side
+    // not containing the anchor taxon), halving X. Exact when combined with the
+    // corresponding anchored DP root.
+    private final boolean anchorFreeX;
+    private final int     anchor;   // anchor taxon global id (valid iff anchorFreeX)
+
+    // True once any multi-range exemplar has been inserted (consensus emission
+    // bridge). Used to gate the GPU weight path, which is single-range-only until
+    // the two-tier range-CSR lands (DOCS/multi-range-cluster-design.md §5.2/§5.3).
+    private boolean hasMultiRange = false;
+
+    // -------------------------------------------------------------------------
+    // Construction
+    // -------------------------------------------------------------------------
+
+    /** Full registration (both orientations) — backward-compatible entry point. */
+    public ClusterTable(List<Tree> trees, PrefixHashArrays pref, int numTaxa) {
+        this(trees, pref, numTaxa, false);
+    }
+
+    /**
+     * @param anchorFreeX  when true, register only the anchor-free orientation of
+     *                     every bipartition (halves X). The caller must combine this
+     *                     with the anchored DP root.
+     */
+    public ClusterTable(List<Tree> trees, PrefixHashArrays pref, int numTaxa, boolean anchorFreeX) {
+        long t0 = System.nanoTime();
+        this.m = pref.numSeeds();
+        this.anchorFreeX = anchorFreeX;
+        this.anchor = anchorFreeX ? Config.getInstance().getAnchorTaxon() : -1;
+
+        // Build all-taxa hash from prefix arrays (using any complete tree)
+        long[] atSums = new long[m], atXors = new long[m];
+        for (int s = 0; s < m; s++) {
+            atSums[s] = pref.allTaxaSum(s);
+            atXors[s] = pref.allTaxaXor(s);
+        }
+        allTaxaHash = new ClusterHash(atSums, atXors, numTaxa, m);
+
+        int totalCandidates = 0;
+        int treesDone = 0;
+        ProgressBar bar = new ProgressBar("Cluster extraction", trees.size());
+        for (Tree tree : trees) {
+            totalCandidates += extractFromTree(tree, pref, numTaxa);
+            bar.update(++treesDone);
+        }
+        bar.done();
+
+        // Compute the {anchor} singleton hash for the anchored-outgroup root split.
+        // Cheap: one range hash from the first tree containing the anchor taxon.
+        this.anchorHash = computeAnchorHash(trees, pref, numTaxa);
+
+        // In anchor-free mode the {anchor} singleton (a with-anchor cluster) is NOT
+        // registered by walkNodes, but the anchored root's {anchor} child and
+        // buildNewick's leaf-name lookup need it — register it explicitly.
+        if (anchorFreeX && anchorHash != null) registerAnchorSingleton(trees);
+
+        long ms = (System.nanoTime() - t0) / 1_000_000;
+        Logging.info("Cluster extraction: %d candidates -> %d unique clusters in %d ms%s",
+            totalCandidates, table.size(), ms, anchorFreeX ? "  [anchor-free X]" : "");
+        Logging.debug("  all-taxa cluster (DP root): %s", allTaxaHash);
+        if (Logging.isDebug()) {
+            logSizeSummary();
+        }
+    }
+
+    /**
+     * Extract clusters from one tree: subtree ranges + complements for every
+     * non-root internal node. Leaves are also included (size-1 clusters).
+     * Returns the number of candidates generated (before dedup).
+     */
+    private int extractFromTree(Tree tree, PrefixHashArrays pref, int numTaxa) {
+        int ti = tree.treeIndex;
+        int L  = tree.leafCount;
+        int[] count = {0};
+        // Anchor position in THIS tree (-1 if anchoring off or the anchor is absent).
+        int anchorPos = (anchorFreeX && anchor >= 0 && anchor < tree.positionMap.length)
+                        ? tree.positionMap[anchor] : -1;
+        walkNodes(tree.root, ti, L, anchorPos, pref, numTaxa, count);
+        return count[0];
+    }
+
+    /**
+     * Post-order walk. For every node (including leaves, but excluding root):
+     *   full mode        — register the subtree cluster AND its super-complement;
+     *   anchor-free mode  — register ONLY the side not containing the anchor taxon.
+     */
+    private void walkNodes(TreeNode node, int ti, int L, int anchorPos,
+                           PrefixHashArrays pref, int numTaxa, int[] count) {
+        if (!node.isLeaf()) {
+            if (node.isPolytomous()) {
+                // Recurse into ALL children. A polytomous node still contributes only
+                // its own sub(u) + complement below — NO combo clusters (sub(cᵢ)∪sub(cⱼ))
+                // are added; confirmed ASTRAL-MP behaviour (polytomy-design.md §3.3).
+                for (TreeNode child : node.children) walkNodes(child, ti, L, anchorPos, pref, numTaxa, count);
+            } else {
+                walkNodes(node.left,  ti, L, anchorPos, pref, numTaxa, count);
+                walkNodes(node.right, ti, L, anchorPos, pref, numTaxa, count);
+            }
+        }
+
+        if (node.isRoot()) return;  // skip root -- it is the all-taxa cluster
+
+        int lo = node.rangeStart, hi = node.rangeEnd;
+        int rangeSize = hi - lo;
+        int superCompSize = numTaxa - rangeSize;   // S \ [lo,hi) (w.r.t. ALL taxa)
+
+        if (!anchorFreeX) {
+            // ── Full: register both sub(u) and its super-complement ──────────
+            registerCluster(ti, lo, hi, false, rangeSize, L, pref, numTaxa);
+            count[0]++;
+            if (superCompSize > 0) {  // skip empty (only if rangeSize == numTaxa, impossible here)
+                registerCluster(ti, lo, hi, true, superCompSize, numTaxa, pref, numTaxa);
+                count[0]++;
+            }
+        } else {
+            // ── Anchor-free: register ONLY the side without the anchor ───────
+            // Exactly one of sub(u) / S\sub(u) contains the anchor (it is in S, on one
+            // side); anchorPos == -1 (anchor absent from this tree) ⇒ sub(u) is
+            // anchor-free (sub(u) ⊆ Lg and anchor ∉ Lg).
+            boolean subHasAnchor = (anchorPos >= lo && anchorPos < hi);
+            if (!subHasAnchor) {
+                registerCluster(ti, lo, hi, false, rangeSize, L, pref, numTaxa);
+                count[0]++;
+            } else if (superCompSize > 0) {
+                registerCluster(ti, lo, hi, true, superCompSize, numTaxa, pref, numTaxa);
+                count[0]++;
+            }
+        }
+    }
+
+    /**
+     * Compute hash for a cluster and insert (or increment frequency) in the table.
+     */
+    private void registerCluster(int ti, int lo, int hi, boolean complement,
+                                  int size, int leafCount,
+                                  PrefixHashArrays pref, int numTaxa) {
+        long[] rawSums = new long[m], rawXors = new long[m];
+        for (int s = 0; s < m; s++) {
+            if (!complement) {
+                rawSums[s] = pref.rangeSum(ti, s, lo, hi);
+                rawXors[s] = pref.rangeXor(ti, s, lo, hi);
+            } else {
+                // Super-complement w.r.t. ALL taxa (S \ [lo,hi))
+                rawSums[s] = pref.superCompSum(ti, s, lo, hi);
+                rawXors[s] = pref.superCompXor(ti, s, lo, hi);
+            }
+        }
+
+        ClusterHash hash = new ClusterHash(rawSums, rawXors, size, m);
+
+        // Skip the all-taxa cluster (it's the DP root, not in X)
+        if (hash.equals(allTaxaHash)) return;
+
+        Entry existing = table.get(hash);
+        if (existing != null) {
+            existing.frequency++;
+        } else {
+            Cluster exemplar = new Cluster(ti, lo, hi, complement, leafCount);
+            Entry entry = new Entry(hash, exemplar);
+            table.put(hash, entry);
+            sizeBins.computeIfAbsent(size, k -> new ArrayList<>()).add(hash);
+        }
+    }
+
+    /**
+     * Hash of the {anchor} singleton cluster — the taxon set {@code {anchorTaxon}} —
+     * computed as a size-1 range hash from the first input tree that contains the
+     * anchor taxon.  Content-based, so it matches the anchor singleton regardless of
+     * which tree produced it.  Returns null if the anchor appears in no tree (which
+     * cannot happen for a real taxon) or the id is out of range.
+     */
+    private ClusterHash computeAnchorHash(List<Tree> trees, PrefixHashArrays pref, int numTaxa) {
+        int anchor = Config.getInstance().getAnchorTaxon();
+        if (anchor < 0 || anchor >= numTaxa) return null;
+        for (Tree t : trees) {
+            int p = (anchor < t.positionMap.length) ? t.positionMap[anchor] : -1;
+            if (p < 0) continue;                       // anchor absent from this tree
+            long[] rawSums = new long[m], rawXors = new long[m];
+            for (int s = 0; s < m; s++) {
+                rawSums[s] = pref.rangeSum(t.treeIndex, s, p, p + 1);
+                rawXors[s] = pref.rangeXor(t.treeIndex, s, p, p + 1);
+            }
+            return new ClusterHash(rawSums, rawXors, 1, m);
+        }
+        return null;
+    }
+
+    /** Register the {anchor} singleton (with-anchor, so not added by walkNodes in anchor-free mode). */
+    private void registerAnchorSingleton(List<Tree> trees) {
+        for (Tree t : trees) {
+            int p = (anchor < t.positionMap.length) ? t.positionMap[anchor] : -1;
+            if (p < 0) continue;                       // anchor absent from this tree
+            addCluster(anchorHash, new Cluster(t.treeIndex, p, p + 1, false, t.leafCount));
+            return;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Queries
+    // -------------------------------------------------------------------------
+
+    /** The {anchor} singleton hash for the anchored-outgroup root split (may be null). */
+    public ClusterHash getAnchorHash()      { return anchorHash; }
+    public Entry get(ClusterHash hash)      { return table.get(hash); }
+    public boolean contains(ClusterHash h)  { return table.containsKey(h); }
+    public int size()                       { return table.size(); }
+    public ClusterHash getAllTaxaHash()     { return allTaxaHash; }
+    public Collection<Entry> entries()     { return table.values(); }
+    public int numSeeds()                  { return m; }
+
+    /** All cluster hashes of a given size. */
+    public List<ClusterHash> getBySize(int sz) {
+        return sizeBins.getOrDefault(sz, Collections.emptyList());
+    }
+
+    /** All sizes present in X. */
+    public Set<Integer> sizes() { return sizeBins.keySet(); }
+
+    /**
+     * Add all bipartitions from one additional tree (e.g. the UPGMA guide tree)
+     * into the cluster table.  The root's bipartition (all-taxa cluster) is
+     * automatically skipped, exactly as in the constructor's per-tree walk.
+     */
+    public void addTree(Tree tree, PrefixHashArrays pref, int numTaxa) {
+        extractFromTree(tree, pref, numTaxa);
+    }
+
+    /**
+     * Insert a cluster whose {@link ClusterHash} is already known — used by the
+     * consensus polytomy-resolution emission bridge, where the signature was
+     * computed via the consensus tree's own prefix scans (and is comparable to
+     * gene-tree signatures because the same {@code TaxonHasher} produced both).
+     *
+     * Mirrors {@link #registerCluster}'s table + sizeBins bookkeeping so the new
+     * cluster participates in Mode 2 cross-tree transitions exactly like a
+     * gene-tree-derived cluster. The all-taxa cluster and existing hashes are
+     * skipped. The exemplar may be single- or multi-range.
+     *
+     * @return true iff newly added
+     */
+    public boolean addCluster(ClusterHash hash, Cluster exemplar) {
+        if (hash.equals(allTaxaHash)) return false;
+        if (table.containsKey(hash))  return false;
+        table.put(hash, new Entry(hash, exemplar));
+        sizeBins.computeIfAbsent(hash.size, k -> new ArrayList<>()).add(hash);
+        if (exemplar.isMultiRange()) hasMultiRange = true;
+        return true;
+    }
+
+    /** True iff any inserted exemplar is multi-range (gates the GPU weight path). */
+    public boolean hasMultiRange() { return hasMultiRange; }
+
+    // -------------------------------------------------------------------------
+
+    private void logSizeSummary() {
+        if (sizeBins.isEmpty()) return;
+        int minSz = Integer.MAX_VALUE, maxSz = 0;
+        for (int sz : sizeBins.keySet()) {
+            minSz = Math.min(minSz, sz);
+            maxSz = Math.max(maxSz, sz);
+        }
+        Logging.debug("  cluster size range: [%d, %d]", minSz, maxSz);
+        Logging.debug("  distinct sizes: %d", sizeBins.size());
+    }
+}
