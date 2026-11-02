@@ -13,6 +13,7 @@ static libraries. On this machine the latter were extracted from the Ubuntu pack
 `deps/` (`apt-get download libmpfr-dev libgmp-dev libsqlite3-dev` then `dpkg -x`), no root
 needed; point `DEPS=` at another prefix if required.
 
+
 ## Command line
 
 `simphy-x` accepts SimPhy 1.0.2's command line unchanged (see `simphy-x -h` for the full list:
