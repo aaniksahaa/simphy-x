@@ -6,8 +6,9 @@ GSL 2.7.1, MPFR 4.2.1) on 2026-09-11. Scripts live in `tests/`.
 ## 1. Oracle
 
 `upstream/SimPhy/bin/simphy_ref` is SimPhy v1.0.2 built from the upstream tag with the
-system libraries. Its output is byte-identical to the shipped `ref/*/simphy_lnx64` on both
-pipeline command styles (`ref/normal-phylo-sim/cmd.txt`, `ref/duploss-simulator/duploss-sim.sh`).
+system libraries. Its output is byte-identical to the official SimPhy 1.0.2 Linux release `simphy_lnx64` on both
+command styles we use (multispecies coalescent and duplication/loss pipelines).
+Build it with `make oracle` (after `git submodule update --init`).
 
 ## 2. Byte-exact compat mode — `tests/verify_compat.sh`
 
@@ -103,6 +104,6 @@ per-locus granularity (few loci per thread).
 
 ## 6. Pipeline integration
 
-`ref/duploss-simulator/duploss-sim.sh --upto true --simphy-bin bin/simphy-x` produces a
+Our duplication/loss pipeline script (`duploss-sim.sh --upto true --simphy-bin bin/simphy-x`) produces a
 `true-genetrees/` and `species-tree/` layout identical to the run with the shipped binary
 (checked with `diff -r` on a 10-taxa × 5-loci × 2-replicate run).

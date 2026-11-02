@@ -1,0 +1,11 @@
+# build products (bin/simphy-x, the portable static binary, is tracked on purpose)
+/build/
+/bin/*
+!/bin/simphy-x
+
+# local reference material and pipelines (not part of SimPhy-X)
+/ref/
+
+# simulation output
+/out*/
+*.db

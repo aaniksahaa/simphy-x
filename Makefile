@@ -55,19 +55,29 @@ build/compat_prob_test: tests/compat_prob_test.c $(TESTSRC) src/*.h
 
 tests: build/unif_test build/bridge_exact_test build/bridge_vs_inversion build/simphy_cdf_check build/compat_prob_test
 
-# numerics unit test + byte-exact matrix against the reference build (needs upstream/SimPhy/bin/simphy_ref)
-check: $(BIN) build/unif_test
+# SimPhy 1.0.2 built from the upstream tag (git submodule upstream/SimPhy): the reference for `make check`
+ORACLE := upstream/SimPhy/bin/simphy_ref
+UPSRC := $(addprefix upstream/SimPhy/src/,main.c num_methods.c sampling.c sql_managing.c trees.c)
+
+oracle: $(ORACLE)
+
+$(ORACLE):
+	@test -f upstream/SimPhy/src/trees.c || { echo "upstream/SimPhy is empty: run 'git submodule update --init'" >&2; exit 1; }
+	@mkdir -p $(dir $@)
+	$(CC) -O2 -w $(CPPFLAGS) $(LDFLAGS) $(UPSRC) -o $@ $(LIBS)
+
+# numerics unit test + byte-exact matrix against the reference build
+check: $(BIN) $(ORACLE) build/unif_test
 	./build/unif_test
 	tests/verify_compat.sh /tmp/simphy-x-verify 1 4
 
-install: $(BIN)
+PREFIX ?= /usr/local
 
+install: $(BIN)
 	install -d $(DESTDIR)$(PREFIX)/bin
 	install -m 755 $(BIN) $(DESTDIR)$(PREFIX)/bin/simphy-x
-
-PREFIX ?= /usr/local
 
 clean:
 	rm -rf build bin
 
-.PHONY: all clean tests check install static dynamic
+.PHONY: all clean tests check install static dynamic oracle

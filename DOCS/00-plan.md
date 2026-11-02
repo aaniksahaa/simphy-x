@@ -1,4 +1,4 @@
-# simphy-x — plan and status
+# SimPhy-X — development plan and status
 
 Living document. Newest entries at the bottom of each phase.
 
@@ -58,14 +58,6 @@ Living document. Newest entries at the bottom of each phase.
       SimPhy's double-precision attempt produces wrong samples in ~8 % of bounded branches in the cancellation regime
       (documented in 01-reference-analysis.md §7); fixed 100-taxon high-duplication paired test 11/11
 - [x] fast mode smoke-tested on all 20 matrix command lines (same exit codes as the reference)
-
-## Phase 4 — fast mode
-- [ ] per-stream RNG (xoshiro256** as gsl_rng_type), stream derivation
-- [ ] sx_unif: Poisson weights, backward vectors, o_probs, bridge sampler, Tavaré fallback
-- [ ] fast MLC gene-tree path; fast count sampling
-- [ ] parallel replicate×locus scheduler with ordered output
-- [ ] numerics unit tests vs MPFR; statistical equivalence tests vs reference
-- [ ] benchmarks 200/500/1000/10000 taxa
 
 ## Phase 5 — packaging (done 2026-09-11 except the items marked open)
 - [x] Makefile (static deps, `make`, `make tests`, `make check`, `make install`), README, DOCS/03-usage.md, DOCS/04-verification.md

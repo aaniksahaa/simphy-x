@@ -1,0 +1,3 @@
+[submodule "upstream/SimPhy"]
+	path = upstream/SimPhy
+	url = https://github.com/adamallo/SimPhy.git

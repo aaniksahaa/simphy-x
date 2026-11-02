@@ -114,8 +114,8 @@ It is x86-64 Linux only; other platforms build from source with `make`.
 
 ## Pipeline integration
 
-`ref/normal-phylo-sim/run_simulator.sh` and `ref/duploss-simulator/duploss-sim.sh` can use
-`simphy-x` as a drop-in replacement for `simphy_lnx64` (same flags, same output files). To use
+Scripts that call SimPhy 1.0.2 (`simphy_lnx64`) can use `simphy-x` as a drop-in replacement
+(same flags, same output files). To use
 fast mode append `-XM fast` to the SimPhy invocation; `-XT` defaults to all cores.
 
 ## Seeds and determinism

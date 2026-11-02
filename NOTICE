@@ -1,0 +1,45 @@
+SimPhy-X
+Copyright (C) 2026 Anik Saha
+
+SimPhy-X is a modified version of SimPhy 1.0.2:
+
+  SimPhy: A comprehensive simulator of gene family evolution
+  Copyright (C) 2015 Diego Mallo, Leonardo de Oliveira Martins and David Posada
+  https://github.com/adamallo/SimPhy (tag v1.0.2, commit b36f07a)
+
+SimPhy is distributed under the GNU General Public License, version 2 (its
+license file does not restrict the version). SimPhy-X is distributed under the
+GNU General Public License, version 2 or (at your option) any later version
+(SPDX: GPL-2.0-or-later); the license text is in LICENSE.
+
+Changes relative to SimPhy 1.0.2 (2026):
+  * The simulator was re-implemented in C (src/) following SimPhy 1.0.2's source
+    and random-number consumption order, with array-based trees, linear memory
+    and a thread pool.
+  * New default "compat" mode: output byte-identical to SimPhy 1.0.2 for the
+    same command line and seed, at any thread count.
+  * New "fast" mode (-XM fast): independent random streams per locus and
+    uniformisation-based sampling of the bounded coalescent instead of 512-bit
+    MPFR root finding.
+  * New options -XM, -XT, -XR and -XV; a SimPhy-X banner before SimPhy's
+    program text; the help text lists the new options.
+  * Inputs on which SimPhy 1.0.2 crashes or reads uninitialised memory are
+    handled deterministically (DOCS/03-usage.md, "Fixed trees as input").
+
+The SimPhy 1.0.2 source itself is referenced as a git submodule in
+upstream/SimPhy and is used, unmodified, only to build the reference binary for
+the byte-exact tests.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 2 of the License, or (at your option) any later
+version. It is distributed WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+The prebuilt static binary bin/simphy-x also contains, statically linked: the
+GNU C Library (LGPL-2.1-or-later), GSL (GPL-3.0-or-later), GNU MPFR
+(LGPL-3.0-or-later), GNU MP (LGPL-3.0-or-later / GPL-2.0-or-later) and SQLite
+(public domain). Because GSL and MPFR are version-3 licenses, this combined
+binary is distributed under the terms of GPL version 3. The source code of these
+libraries is available from their upstream projects.

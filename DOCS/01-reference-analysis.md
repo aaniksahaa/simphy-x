@@ -5,7 +5,7 @@ reproduce its output byte-for-byte, and where its time and memory go.
 
 ## 1. Provenance and oracle
 
-* Shipped binary: `ref/*/simphy_lnx64` (md5 `3969a8370c84fc379d62f405ec8f7867`,
+* Shipped binary: the official SimPhy 1.0.2 Linux release `simphy_lnx64` (md5 `3969a8370c84fc379d62f405ec8f7867`,
   GCC 4.8.2, March 2016, GSL/MPFR/GMP/SQLite statically linked, libc/libm dynamic).
 * Source: upstream tag `v1.0.2` of https://github.com/adamallo/SimPhy, cloned to
   `upstream/SimPhy`. Built here with the system GSL 2.7.1 and locally extracted

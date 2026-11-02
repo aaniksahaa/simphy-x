@@ -1,0 +1,186 @@
+################################################################################
+#  SimPhy-X — command cookbook
+#
+#  Annotated example commands; copy the ones you need (this file is not meant
+#  to be run as a whole).  Paths assume the repository root as working
+#  directory and the binary in bin/simphy-x.
+#
+#  simphy-x accepts SimPhy 1.0.2's command line unchanged and writes the same
+#  files (<out>/<rep>/s_tree.trees, l_trees.trees, g_treesNNN.trees, *.mapsl,
+#  *.maplg, bounded_locus_subtrees.out, stats.txt, <out>.params, <out>.command,
+#  <out>.db).  Two modes:
+#
+#     -XM compat   (default) byte-identical to SimPhy 1.0.2 for the same command
+#                  and seed, any thread count; O(n) memory; MPFR chains parallel
+#     -XM fast     same model, independent random stream per locus, no
+#                  arbitrary-precision arithmetic; 40-180x faster on GDL; output
+#                  is NOT SimPhy's sample path but is statistically equivalent
+#
+#     -XT n        threads (default: all cores); never changes the output
+#     -XR 1        compat only: keep going with higher precision where SimPhy
+#                  1.0.2 aborts with "MPFR out of precision" (large bounded
+#                  subtrees); output identical up to that point
+#     -XV          version
+################################################################################
+
+
+#=============================================================================
+# 0. BUILD
+#=============================================================================
+make                 # bin/simphy-x          fully static x86-64 Linux binary: copy it anywhere, no installs,
+                     #                       identical output on every machine (this is the one to distribute)
+make dynamic         # bin/simphy-x-dynamic  linked against the host glibc/libm (like SimPhy itself)
+make tests           # numerics test programs under build/
+make check           # unit test + byte-exact matrix vs upstream/SimPhy/bin/simphy_ref
+make install PREFIX=$HOME/.local
+make oracle          # SimPhy 1.0.2 reference binary (after: git submodule update --init)
+
+# drop-in for existing SimPhy pipelines: same flags, same files; point them at bin/simphy-x
+
+
+#=============================================================================
+# 1. NORMAL PHYLOGENY SIMULATION (multispecies coalescent, no duplications)
+#=============================================================================
+
+# 5 taxa, 10 gene trees, 2 replicates (smoke test)
+bin/simphy-x -sb f:0.000001 -ld f:0 -lb f:0 -lt f:0 -rs 2 -rl f:10 -rg 1 -o out5 \
+  -sp f:10000 -su f:0.00001 -sg f:1 -sl f:5 -st f:1000000 \
+  -om 1 -v 2 -od 1 -op 1 -oc 1 -on 1 -cs 22 -ll 5 -ls 5
+
+# 500 taxa, 1000 gene trees
+bin/simphy-x -sb f:0.000001 -ld f:0 -lb f:0 -lt f:0 -rs 1 -rl f:1000 -rg 1 -o out500 \
+  -sp f:10000 -su f:0.00001 -sg f:1 -sl f:500 -st f:1000000 \
+  -om 1 -v 2 -od 1 -op 1 -oc 1 -on 1 -cs 22 -ll 500 -ls 500
+
+# 10000 taxa, 1000 gene trees  (SimPhy: 1.6 GB RSS; simphy-x: ~25 MB)
+bin/simphy-x -sb f:0.000001 -ld f:0 -lb f:0 -lt f:0 -rs 1 -rl f:1000 -rg 1 -o 10k \
+  -sp f:10000 -su f:0.00001 -sg f:1 -sl f:10000 -st f:1000000 \
+  -om 1 -v 1 -od 1 -op 1 -oc 1 -on 1 -cs 22 -ll 10000 -ls 10000
+
+# sampled population size, substitution rate and height
+bin/simphy-x -sb f:0.000001 -ld f:0 -lb f:0 -lt f:0 -rs 10 -rl f:500 -rg 1 -o data/t1000_g500 \
+  -sp u:500000,1500000 -su ln:-17.27461,0.6931472 -sg f:1 -sl f:1000 -st ln:16.2,1 \
+  -om 1 -v 2 -od 1 -op 1 -oc 1 -on 1 -cs 42
+
+# the same, fast mode on all cores (different sample path, same distributions)
+bin/simphy-x -sb f:0.000001 -ld f:0 -lb f:0 -lt f:0 -rs 10 -rl f:500 -rg 1 -o data/t1000_g500_fast \
+  -sp u:500000,1500000 -su ln:-17.27461,0.6931472 -sg f:1 -sl f:1000 -st ln:16.2,1 \
+  -om 1 -v 1 -od 1 -op 1 -oc 1 -on 1 -cs 42 -XM fast
+
+
+#=============================================================================
+# 2. DUPLICATION / LOSS (GDL) SIMULATION
+#    duplication rate per generation for a target duplication level D, with species-tree
+#    height ln:21.25,0.2:  rate = ln(1+D)/H with H = 2*e^21.25
+#      D=0.25 -> 6.59e-11   D=1 -> 2.046e-10   D=3 -> 4.093e-10 ; loss = ratio x dup
+#=============================================================================
+
+# smoke test: 10 taxa, 5 gene trees, 2 replicates, D=1, loss 0.1
+bin/simphy-x -sl f:10 -rs 2 -rl f:5 -rg 1 -sb f:0.000001 -sd f:0 -st ln:21.25,0.2 -so f:1 -si f:1 \
+  -sp f:50000000 -su ln:-21.9,0.1 -hh f:1 -hs ln:1.5,1 -hl ln:1.551533,0.6931472 -hg ln:1.5,1 \
+  -lb f:2.046e-10 -ld f:2.046e-11 -lt f:0 -cs 9644 -v 3 -ot 0 -op 1 -o gdl_smoke
+
+# SIM200: 200 taxa, 1000 gene trees, 20 replicates, high ILS (pop 290M), D=1, loss 0.1
+bin/simphy-x -sl f:200 -rs 20 -rl f:1000 -rg 1 -sb f:0.000001 -sd f:0 -st ln:21.25,0.2 -so f:1 -si f:1 \
+  -sp f:290000000 -su ln:-21.9,0.1 -hh f:1 -hs ln:1.5,1 -hl ln:1.551533,0.6931472 -hg ln:1.5,1 \
+  -lb f:2.046e-10 -ld f:2.046e-11 -lt f:0 -cs 9644 -v 1 -ot 0 -op 1 -o sim200_dup1_loss0.1
+#   compat (SimPhy-identical): ~10x faster than SimPhy on 16 cores; fast: add -XM fast (~180x)
+
+# SIM500: 500 taxa, 10 replicates, D=3 (~2000-leaf gene trees), loss 1; needs a higher leaf cap
+SIMPHY_MAXLEAVES=100000 bin/simphy-x -sl f:500 -rs 10 -rl f:1000 -rg 1 -sb f:0.000001 -sd f:0 \
+  -st ln:21.25,0.2 -so f:1 -si f:1 -sp f:270000000 -su ln:-21.9,0.1 -hh f:1 -hs ln:1.5,1 \
+  -hl ln:1.551533,0.6931472 -hg ln:1.5,1 -lb f:4.093e-10 -ld f:4.093e-10 -lt f:0 \
+  -cs 9644 -v 1 -ot 0 -op 1 -o sim500_dup3_loss1 -XM fast
+
+# large taxon counts with duplications: SimPhy 1.0.2 aborts ("MPFR out of precision").
+#   fast mode completes; compat with -XR 1 continues past the abort point with more precision
+SIMPHY_MAXLEAVES=200000 bin/simphy-x -sl f:2000 -rs 1 -rl f:100 -rg 1 -sb f:0.000001 -sd f:0 \
+  -st ln:21.25,0.2 -so f:1 -si f:1 -sp f:290000000 -su ln:-21.9,0.1 -hh f:1 -hs ln:1.5,1 \
+  -hl ln:1.551533,0.6931472 -hg ln:1.5,1 -lb f:6e-11 -ld f:6e-12 -lt f:0 -cs 9644 -v 1 -o gdl2000 -XM fast
+
+# with horizontal transfer and gene conversion (receptor chosen by distance, -lk 1)
+bin/simphy-x -sl f:50 -rs 2 -rl f:100 -rg 1 -sb f:0.000001 -st f:1000000 -sp f:100000 -su f:0.00001 \
+  -lb f:0.0000005 -ld f:0.0000003 -lt f:0.0000005 -lg f:0.0000002 -lk 1 \
+  -om 1 -on 1 -ol 1 -od 1 -os 1 -cs 29 -v 1 -o gdl_hgt
+
+# genome-wide priors: per-replicate duplication parameter, locus rate = lognormal multiple of it
+bin/simphy-x -sl f:50 -rs 3 -rl f:100 -rg 1 -sb f:0.000001 -st f:1000000 -sp f:100000 -su f:0.00001 \
+  -gb ln:-14.5,0.5 -gd f:0.0000002 -lb sl:0,0.2,gb -ld f:gd -om 1 -on 1 -od 1 -cs 41 -v 1 -o gdl_prior
+
+
+#=============================================================================
+# 3. FIXED TREES (-S, -SR, -L, -LR), CONFIG FILE (-I)
+#=============================================================================
+
+# names, branch lengths in generations; root without length; must be ultrametric
+bin/simphy-x -s "(((A:1000000,B:1000000):500000,(C:800000,D:800000):700000):300000,E:1800000);" \
+  -rs 2 -rl f:100 -rg 1 -sp f:20000 -su f:0.00001 -om 1 -od 1 -op 1 -on 1 -v 1 -cs 61 -o fixed
+
+# per-node population size (#Ne) and individuals per species (/n) on leaves, 2 individuals default
+bin/simphy-x -s "(((A:1000000#30000/2,B:1000000):500000#40000,(C:800000,D:800000/3):700000):300000,E:1800000);" \
+  -rs 1 -rl f:50 -rg 1 -sp f:20000 -su f:0.00001 -si f:2 -om 1 -ol 1 -v 1 -cs 67 -o fixed_annot
+
+# duplications/losses/transfers on a fixed species tree
+bin/simphy-x -s "(((A:1000000,B:1000000):500000,(C:800000,D:800000):700000):300000,E:1800000);" \
+  -rs 2 -rl f:100 -rg 1 -sp f:100000 -su f:0.00001 -lb f:0.0000008 -ld f:0.0000004 -lt f:0.0000003 \
+  -om 1 -on 1 -od 1 -os 1 -op 1 -v 1 -cs 71 -o fixed_gdl
+
+# Nexus file with one species tree per replicate (-RS becomes the number of trees in the file)
+#   #NEXUS / BEGIN TREES; / tree t1 = (...); / End;   comments: [&pop_size=,n_ind=,u_mult=,g_mult=]
+bin/simphy-x -SR tests/inputs/species.nex -rl f:100 -rg 1 -sp f:10000 -su f:0.00001 -si f:2 \
+  -lb f:0.00002 -ld f:0.00002 -lt f:0.00001 -om 1 -od 1 -op 1 -v 1 -cs 5 -o nexus_species
+
+# fixed locus tree (-L): leaves Name_paralog, node kinds %1 duplication %2 loss, /n individuals per leaf
+#   no species tree -> no s_tree.trees, no mappings; gene trees follow the multilocus coalescent on the given tree
+bin/simphy-x -L "((A_0:10000,(B_0:5000,B_1:5000)%1:5000):5000,(C_0:12000,D_0%2:9000):3000);" \
+  -rl f:100 -rg 1 -sp f:10000 -su f:0.00001 -si f:2 -od 1 -op 1 -v 1 -cs 5 -o fixed_locus
+
+# Nexus file with one locus tree per locus (-RL becomes the number of trees in the file)
+#   comments: [&pop_size=,kind_n=,paralog=,n_ind=,u_mult=,g_mult=]
+bin/simphy-x -LR tests/inputs/locus.nex -rs 2 -sp f:10000 -su f:0.00001 -si f:2 -od 1 -op 1 -v 1 -cs 9 -o nexus_locus
+
+# configuration file: one "-CODE value" per line, '#' comments; command line wins on conflicts
+cat > sim.conf <<'CONF'
+# SIM200-like settings
+-SL f:200
+-RS 20
+-RL f:1000
+-SB f:0.000001
+-ST ln:21.25,0.2
+-SO f:1
+-SP f:290000000
+-SU ln:-21.9,0.1
+-HS ln:1.5,1
+-HL ln:1.551533,0.6931472
+-HG ln:1.5,1
+-LB f:2.046e-10
+-LD f:2.046e-11
+-CS 9644
+-OP 1
+CONF
+bin/simphy-x -I sim.conf -o sim200_from_conf -v 1          # copies sim.conf to sim200_from_conf.conf
+
+
+#=============================================================================
+# 4. OUTPUT OPTIONS, VERBOSITY, ENVIRONMENT
+#=============================================================================
+#   -OM 1  mappings (*.mapsl, *.maplg)     -OD 1  SQLite database <out>.db
+#   -OP 1  <out>.params                    -OC 1  <out>.command (+ .conf)      (default ON)
+#   -OL 1  internal node labels            -ON 1  bounded_locus_subtrees.out
+#   -OT 1  species/locus branch lengths in time units (x generation time)
+#   -OS 1  stats.txt per replicate
+#   -V 0..4  SimPhy's program text (identical to SimPhy 1.0.2); 5-6 print the level-4 text
+#   SIMPHY_MAXLEAVES=n  cap on locus-tree lineages per species branch (default 1000)
+#   SIMPHY_MAXIT, SIMPHY_MAXNAME, SIMPHY_FLOATPREC   as in SimPhy
+#   SIMPHY_X_DEBUG=1    fast-mode sampler counters on stderr
+
+
+#=============================================================================
+# 5. VERIFICATION
+#=============================================================================
+tests/verify_compat.sh /tmp/vc 1 4 16                # byte-exact matrix vs reference build
+SX_CHECK_STDOUT=1 tests/verify_compat.sh /tmp/vc 1   # ... also program text
+./build/unif_test                                    # numerics vs 2048-bit MPFR
+python3 tests/verify_fast.py --loci 5 --reps 200     # fast vs compat, many species trees
+python3 tests/verify_fast.py --stree TREE.nwk --simple-rates --loci 50 --reps 20   # paired, fixed tree
+./build/bridge_exact_test 40 20 1e-3 20000 600       # samplers vs exact conditional CDFs
