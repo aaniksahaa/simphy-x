@@ -1,45 +1,36 @@
 cff-version: 1.2.0
-message: >-
-  If you use SimPhy-X, please cite this software and the original SimPhy paper
-  (listed under "references"); SimPhy-X is a modified version of SimPhy 1.0.2.
-type: software
-title: "SimPhy-X: a scalable, parallel, SimPhy-compatible phylogenomic simulator"
-abstract: >-
-  SimPhy-X is a modified and re-engineered version of SimPhy 1.0.2 (Mallo, de
-  Oliveira Martins and Posada, 2016) that simulates species trees, locus trees
-  under duplication, loss, horizontal transfer and gene conversion, and gene
-  trees under the multispecies and bounded multilocus coalescent. It accepts
-  SimPhy's command line unchanged. Its default compat mode writes output that is
-  byte-identical to SimPhy 1.0.2 for the same command and seed at any thread
-  count, with linear instead of quadratic memory; its fast mode samples the same
-  model with independent per-locus random streams and without arbitrary-precision
-  arithmetic, and is up to about 180 times faster on duplication/loss simulations.
-authors:
-  - family-names: Saha
-    given-names: Anik
-    affiliation: Bangladesh University of Engineering and Technology
+message: "If you use SimPhy-X, please cite the paper below and the original SimPhy paper it is based on (listed under references)."
+title: SimPhy-X
 version: 0.1.0
-date-released: "2026-11-03"
 license: GPL-2.0-or-later
-repository-code: "https://github.com/aaniksahaa/simphy-x"
-keywords:
-  - phylogenomics
-  - simulation
-  - multispecies coalescent
-  - gene duplication and loss
-  - gene tree
-  - species tree
-  - SimPhy
+authors:
+  - given-names: Anik
+    family-names: Saha
+  - given-names: Ashrafur
+    family-names: Rahman
+  - given-names: Md. Shamsuzzoha
+    family-names: Bayzid
+preferred-citation:
+  type: article
+  title: "SimPhy-X: Scalable, parallel and SimPhy-compatible simulation of species, locus and gene trees"
+  status: in-preparation
+  authors:
+    - given-names: Anik
+      family-names: Saha
+    - given-names: Ashrafur
+      family-names: Rahman
+    - given-names: Md. Shamsuzzoha
+      family-names: Bayzid
 references:
   - type: article
     title: "SimPhy: Phylogenomic Simulation of Gene, Locus, and Species Trees"
     authors:
-      - family-names: Mallo
-        given-names: Diego
-      - family-names: De Oliveira Martins
-        given-names: Leonardo
-      - family-names: Posada
-        given-names: David
+      - given-names: Diego
+        family-names: Mallo
+      - given-names: Leonardo
+        family-names: De Oliveira Martins
+      - given-names: David
+        family-names: Posada
     journal: Systematic Biology
     volume: 65
     issue: 2
@@ -47,15 +38,3 @@ references:
     end: 344
     year: 2016
     doi: 10.1093/sysbio/syv082
-  - type: software
-    title: SimPhy
-    version: 1.0.2
-    authors:
-      - family-names: Mallo
-        given-names: Diego
-      - family-names: De Oliveira Martins
-        given-names: Leonardo
-      - family-names: Posada
-        given-names: David
-    license: GPL-2.0
-    repository-code: "https://github.com/adamallo/SimPhy"

@@ -216,12 +216,11 @@ If you use SimPhy-X, please cite both SimPhy-X and the original SimPhy paper. Gi
 "Cite this repository" button reads [CITATION.cff](CITATION.cff).
 
 ```bibtex
-@software{saha2026simphyx,
-  author  = {Saha, Anik},
-  title   = {{SimPhy-X}: a scalable, parallel, {SimPhy}-compatible phylogenomic simulator},
-  year    = {2026},
-  version = {0.1.0},
-  url     = {https://github.com/aaniksahaa/simphy-x}
+@article{saha2026simphyx,
+  author  = {Saha, Anik and Rahman, Ashrafur and Bayzid, Md. Shamsuzzoha},
+  title   = {{SimPhy-X}: Scalable, parallel and {SimPhy}-compatible simulation of species, locus and gene trees},
+  note    = {In preparation. Software: https://github.com/aaniksahaa/simphy-x},
+  year    = {2026}
 }
 
 @article{mallo2016simphy,
