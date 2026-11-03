@@ -13,7 +13,6 @@ authors:
 preferred-citation:
   type: article
   title: "SimPhy-X: Scalable, parallel and SimPhy-compatible simulation of species, locus and gene trees"
-  status: in-preparation
   authors:
     - given-names: Anik
       family-names: Saha

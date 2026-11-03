@@ -227,7 +227,7 @@ If you use SimPhy-X, please cite both SimPhy-X and the original SimPhy paper. Gi
 @article{saha2026simphyx,
   author  = {Saha, Anik and Rahman, Ashrafur and Bayzid, Md. Shamsuzzoha},
   title   = {{SimPhy-X}: Scalable, parallel and {SimPhy}-compatible simulation of species, locus and gene trees},
-  note    = {In preparation. Software: https://github.com/aaniksahaa/simphy-x},
+  note    = {Software: https://github.com/aaniksahaa/simphy-x},
   year    = {2026}
 }
 
