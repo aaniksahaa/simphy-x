@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Fast-mode numerics for the bounded coalescent.
  *
  * Inside a bounded locus subtree the lineage count along a branch is a pure

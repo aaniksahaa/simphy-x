@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_sampling.h"
 #include <ctype.h>
 #include <strings.h>

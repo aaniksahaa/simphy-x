@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_common.h"
 
 int MAX_IT = 10000;

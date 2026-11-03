@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_cli.h"
 #include <ctype.h>
 #include <time.h>
 #include "sx_newick.h"
+#include "sx_port.h"
 
 sx_settings *sx_settings_new(void)
 {

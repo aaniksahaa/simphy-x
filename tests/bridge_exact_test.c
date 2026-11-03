@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* One-sample tests of both bounded-coalescent samplers against the EXACT
  * marginal CDF of the j-th coalescence time τ_j given i→o lineages in T:
  *   P(τ_j <= x) = sum_{k <= i-j} P_{i,k}(x) P_{k,o}(T-x) / P_{i,o}(T),

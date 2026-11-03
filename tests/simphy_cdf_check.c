@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Evaluates SimPhy's conditional CDF of the next coalescence time (MPFR and double
  * versions, exactly as SimPhy computes them) against the exact CDF
  *   F(w) = sum_{k<i} P_{i,k}(w) P_{k,o}(T-w) / P_{i,o}(T)  (2048-bit MPFR). */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_msort.h"
 #include "sx_common.h"
 

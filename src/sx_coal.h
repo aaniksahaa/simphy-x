@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Compat numerics: exact port of SimPhy's bounded multilocus coalescent
  * machinery (Kahan log-scale Tavaré series, modified Brent root finding, and
  * the 512-bit MPFR fallback).  Every floating-point expression is kept in

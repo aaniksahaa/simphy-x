@@ -1,6 +1,8 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_newick.h"
 #include <ctype.h>
 #include "sx_ltree.h"
+#include "sx_port.h"
 
 sx_names *sx_names_new(int n_names)
 {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Output writers reproducing SimPhy's file formats byte for byte. */
 #ifndef SX_WRITE_H
 #define SX_WRITE_H

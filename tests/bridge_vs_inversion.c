@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Distributional comparison of the two bounded-coalescent time samplers:
  * SimPhy's sequential CDF inversion (double attempt + 512-bit MPFR redo, the
  * exact compat logic) versus the uniformisation bridge sampler.  For each

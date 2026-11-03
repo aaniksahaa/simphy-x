@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Gene tree simulation along a locus tree: multispecies coalescent (MSC) and
  * bounded multilocus coalescent (MLC).  Active gene lineages live in a single
  * pool of n_gleaves ints used as a stack of per-locus-node segments.

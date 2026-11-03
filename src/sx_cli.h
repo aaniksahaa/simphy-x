@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Settings and command-line parsing: port of SimPhy's GetSettings plus the
  * simphy-x specific options (-XM mode, -XT threads). */
 #ifndef SX_CLI_H
@@ -35,7 +36,7 @@ long sx_check_sampled_sloop(const sx_settings *s, int min_lleaves);
 long sx_check_sampled_lloop(const sx_settings *s);
 long sx_check_sampled_gloop(const sx_settings *s);
 
-#define SX_VERSION "0.1.0"
+#define SX_VERSION "1.0.0"
 
 #endif
 

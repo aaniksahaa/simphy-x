@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Sampling units ("f:1", "u:10,20", "ln:m,s", ...) — port of SimPhy's sampling.c
  * with identical semantics, including the dependency ordering used when several
  * units are sampled together (a stable sort by dependency depth). */

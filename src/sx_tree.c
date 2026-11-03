@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_tree.h"
 
 /* ---------- traversal (iterative, children visited in stored order) ---------- */

@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use SimPhy-X, please cite the paper below and the original SimPhy paper it is based on (listed under references)."
 title: SimPhy-X
-version: 0.1.0
-license: GPL-2.0-or-later
+version: 1.0.0
+license: GPL-3.0-only
 authors:
   - given-names: Anik
     family-names: Saha

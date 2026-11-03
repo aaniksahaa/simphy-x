@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #ifndef SX_RNG_H
 #define SX_RNG_H
 #include <gsl/gsl_rng.h>

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_write.h"
 
 static inline const char *nm(const sx_names *names, int idx) { return names->names[idx]; }

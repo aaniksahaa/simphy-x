@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* simphy-x — common definitions shared by every module. */
 #ifndef SX_COMMON_H
 #define SX_COMMON_H

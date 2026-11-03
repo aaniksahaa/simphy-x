@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Array-based (struct-of-arrays) species, locus and gene trees.
  * Node ids are positions in the arrays; children are stored with a fixed
  * stride of max_children (as in SimPhy) and -1 marks "no node". */

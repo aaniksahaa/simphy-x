@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_coal.h"
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_sys.h>

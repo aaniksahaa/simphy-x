@@ -1,6 +1,10 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_tpool.h"
 #include "sx_common.h"
 #include <unistd.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 typedef struct job { sx_job_fn fn; void *arg; struct job *next; } job;
 
@@ -13,7 +17,13 @@ struct sx_tpool {
 
 int sx_hardware_threads(void)
 {
+#ifdef _WIN32
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    long n = (long)si.dwNumberOfProcessors;
+#else
     long n = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
     return n > 0 ? (int)n : 1;
 }
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #ifndef SX_DB_H
 #define SX_DB_H
 #include <sqlite3.h>

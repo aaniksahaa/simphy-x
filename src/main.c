@@ -1,9 +1,12 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_cli.h"
 #include "sx_run.h"
 #include "sx_tpool.h"
+#include "sx_port.h"
 
 int main(int argc, char **argv)
 {
+    sx_port_init();
     sx_limits_from_env();
     if (NUM_BUFFER < 20 || MAX_LEAVES < 100 || MAX_NAME < 10 || MAX_IT < 10 || IO_BUFFER < 100) {
         fprintf(stderr, "Environment variables have been modified to unproper values, please, do not change them unless it is completely necessary\n");

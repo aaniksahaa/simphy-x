@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Orchestration.
  *
  * Compat mode: SimPhy's loop is executed sequentially on the main thread
@@ -22,6 +23,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <libgen.h>
+#include "sx_port.h"
 #include <pthread.h>
 #include <time.h>
 

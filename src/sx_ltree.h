@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Locus tree simulation (SimBDLHTree port) and the lineage-count probability
  * machinery used by the bounded multilocus coalescent. */
 #ifndef SX_LTREE_H

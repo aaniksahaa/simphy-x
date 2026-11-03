@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* glibc-compatible stable top-down mergesort (the algorithm qsort() uses on
  * glibc, msort_with_tmp).  Used instead of qsort so that results with
  * SimPhy's epsilon comparators are identical on every platform. */

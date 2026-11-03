@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Unit test: uniformisation vs 512-bit MPFR Tavaré probabilities, and the
  * bridge sampler's first-waiting-time distribution vs the MPFR CDF. */
 #include "../src/sx_unif.h"

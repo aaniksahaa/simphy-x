@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_db.h"
 
 long sx_db_exec(sqlite3 **db, const char *query)

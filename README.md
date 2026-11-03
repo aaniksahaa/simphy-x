@@ -2,7 +2,7 @@
 
 **A scalable, parallel, SimPhy-compatible simulator of species, locus and gene trees.**
 
-[![License: GPL v2+](https://img.shields.io/badge/license-GPL--2.0--or--later-blue.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Based on SimPhy 1.0.2](https://img.shields.io/badge/based%20on-SimPhy%201.0.2-green.svg)](https://github.com/adamallo/SimPhy)
 
 SimPhy-X is a modified and re-engineered version of
@@ -64,16 +64,20 @@ means the multispecies coalescent without duplications.
 
 ## Installation
 
-### Prebuilt binary (x86-64 Linux)
+### Prebuilt binaries (x86-64 Linux and Windows)
 
-`bin/simphy-x` is a fully static executable. It needs no libraries and gives the same output on
-every machine.
+The [1.0.0 release](https://github.com/aaniksahaa/simphy-x/releases/tag/v1.0.0) has a fully
+static executable for x86-64 Linux and one for x86-64 Windows. They need no libraries and give
+the same output on every machine. `bin/simphy-x` in this repository is the Linux one.
 
 ```bash
-curl -L -o simphy-x https://github.com/aaniksahaa/simphy-x/raw/main/bin/simphy-x
+curl -L -o simphy-x https://github.com/aaniksahaa/simphy-x/releases/download/v1.0.0/simphy-x-1.0.0-linux-x86_64
 chmod +x simphy-x
 ./simphy-x -XV
 ```
+
+On Windows, download `simphy-x-1.0.0-windows-x86_64.exe` from the release and run it from a
+terminal, for example `simphy-x-1.0.0-windows-x86_64.exe -XV`.
 
 ### Build from source
 
@@ -89,6 +93,10 @@ make install PREFIX=$HOME/.local      # optional: installs $HOME/.local/bin/simp
 
 To link against the system's glibc instead, run `make dynamic`, which builds
 `bin/simphy-x-dynamic`. To build against system-wide MPFR, GMP and SQLite, add `DEPS=/`.
+
+The Windows binary is cross-compiled on Linux with MinGW-w64: build GMP, MPFR, GSL and SQLite
+for MinGW under a prefix, then run `make windows MINGW_PREFIX=<prefix>`, which writes
+`bin/simphy-x.exe`. The release's `BUILDINFO.txt` names the library versions used.
 
 ## Quick start
 
@@ -238,7 +246,7 @@ If you use SimPhy-X, please cite both SimPhy-X and the original SimPhy paper. Gi
 ## License
 
 SimPhy-X is free software. You can redistribute it and modify it under the terms of the
-[GNU General Public License](LICENSE), version 2 or, at your option, any later version. This is
-the same license family as SimPhy. Copyright © 2015 Diego Mallo, Leonardo de Oliveira Martins
+[GNU General Public License](LICENSE), version 3, the license the SimPhy paper gives for SimPhy
+(Mallo et al. 2016). Copyright © 2015 Diego Mallo, Leonardo de Oliveira Martins
 and David Posada (SimPhy). Copyright © 2026 Anik Saha (SimPhy-X modifications). See [NOTICE](NOTICE) for
 third-party libraries in the static binary.

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Compares SimPhy's double-precision lineage-count probabilities (as logged by
  * a compat run with SIMPHY_X_PROBLOG) against exact values (2048-bit MPFR). */
 #include "../src/sx_coal.h"

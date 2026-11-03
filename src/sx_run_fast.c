@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Fast mode orchestration.
  *
  * Every (replicate, locus) pair is an independent job with its own random
@@ -23,6 +24,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <libgen.h>
+#include "sx_port.h"
 #include <pthread.h>
 
 enum { TAG_REP = 1, TAG_LOCUS = 2 };

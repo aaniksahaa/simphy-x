@@ -71,6 +71,17 @@ check: $(BIN) $(ORACLE) build/unif_test
 	./build/unif_test
 	tests/verify_compat.sh /tmp/simphy-x-verify 1 4
 
+# Windows x86-64: cross-compiled with MinGW-w64 against static GSL, MPFR, GMP
+# and SQLite built for MinGW under $(MINGW_PREFIX).
+MINGW_CC ?= x86_64-w64-mingw32-gcc-posix
+MINGW_PREFIX ?= /opt/mingw
+windows: bin/simphy-x.exe
+bin/simphy-x.exe: $(SRC)
+	@mkdir -p bin
+	$(MINGW_CC) $(CFLAGS) -I$(MINGW_PREFIX)/include $(SRC) -o $@ -static -L$(MINGW_PREFIX)/lib \
+	  -lgsl -lgslcblas -lsqlite3 -lmpfr -lgmp -lpthread -lm
+.PHONY: windows
+
 PREFIX ?= /usr/local
 
 install: $(BIN)

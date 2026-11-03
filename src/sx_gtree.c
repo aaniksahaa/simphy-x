@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "sx_gtree.h"
 #include "sx_ltree.h"
 #include "sx_unif.h"

@@ -7,10 +7,11 @@ SimPhy-X is a modified version of SimPhy 1.0.2:
   Copyright (C) 2015 Diego Mallo, Leonardo de Oliveira Martins and David Posada
   https://github.com/adamallo/SimPhy (tag v1.0.2, commit b36f07a)
 
-SimPhy is distributed under the GNU General Public License, version 2 (its
-license file does not restrict the version). SimPhy-X is distributed under the
-GNU General Public License, version 2 or (at your option) any later version
-(SPDX: GPL-2.0-or-later); the license text is in LICENSE.
+The SimPhy paper (Mallo, de Oliveira Martins and Posada, Systematic Biology
+65(2):334-344, 2016, doi:10.1093/sysbio/syv082) states that "SimPhy is
+distributed under the license GNU GPL v3". SimPhy-X is distributed under the
+GNU General Public License, version 3 (SPDX: GPL-3.0-only); the license text is
+in LICENSE.
 
 Changes relative to SimPhy 1.0.2 (2026):
   * The simulator was re-implemented in C (src/) following SimPhy 1.0.2's source
@@ -32,14 +33,14 @@ the byte-exact tests.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
-Foundation, either version 2 of the License, or (at your option) any later
-version. It is distributed WITHOUT ANY WARRANTY; without even the
+Foundation, version 3. It is distributed WITHOUT ANY WARRANTY; without even the
 implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
-The prebuilt static binary bin/simphy-x also contains, statically linked: the
-GNU C Library (LGPL-2.1-or-later), GSL (GPL-3.0-or-later), GNU MPFR
-(LGPL-3.0-or-later), GNU MP (LGPL-3.0-or-later / GPL-2.0-or-later) and SQLite
-(public domain). Because GSL and MPFR are version-3 licenses, this combined
-binary is distributed under the terms of GPL version 3. The source code of these
-libraries is available from their upstream projects.
+The release binaries are statically linked with GSL (GPL-3.0-or-later), GNU
+MPFR (LGPL-3.0-or-later), GNU MP (LGPL-3.0-or-later / GPL-2.0-or-later) and
+SQLite (public domain); the Linux binary also with the GNU C Library
+(LGPL-2.1-or-later) and the Windows binary with the MinGW-w64 runtime (ZPL-2.1
+and permissive licenses). The binaries are distributed under GPL version 3. The
+BUILDINFO.txt of each release names the exact library versions and the Debian
+source packages they were built from.

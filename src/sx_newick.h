@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Fixed species trees given as (extended) Newick strings: port of SimPhy's
  * CheckNewickSTree / ParseNewickSTree / RefineSNodes.  Supported annotations
  * after a node: :length (generations), #Ne, /individuals, *mu_mult, ~gtime_mult. */

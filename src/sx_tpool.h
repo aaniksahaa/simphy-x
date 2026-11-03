@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Minimal pthread thread pool with an unbounded FIFO queue. */
 #ifndef SX_TPOOL_H
 #define SX_TPOOL_H

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Species tree simulation: port of SimPhy's NewBDSTree (BDSA with a fixed
  * number of leaves and optional fixed height; SSA with a fixed height) plus
  * outgroup addition.  Random draws happen in exactly SimPhy's order. */
